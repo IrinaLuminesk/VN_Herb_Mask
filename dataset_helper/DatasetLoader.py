@@ -11,6 +11,21 @@ from PIL import Image
 import numpy as np
 from torchvision import tv_tensors
 
+class ApplyToImageOnly:
+    def __init__(self, tf):
+        self.tf = tf
+
+    def __call__(self, img, mask):
+        return self.tf(img), mask
+
+
+class ApplyToBoth:
+    def __init__(self, tf):
+        self.tf = tf
+
+    def __call__(self, img, mask):
+        return self.tf(img, mask)
+
 #Cái mới nhất
 class ImageMaskFolder(Dataset):
     def __init__(self, img_root, mask_root, std, mean, img_size, data_type, transform = True):
@@ -56,52 +71,52 @@ class ImageMaskFolder(Dataset):
             v2.Compose([
                 v2.Resize(self.img_size),
                 v2.RandomChoice([
-                    v2.RandomResizedCrop(size=self.img_size),
-                    v2.RandomHorizontalFlip(p=1),
-                    v2.RandomVerticalFlip(p=1),
-                    v2.Compose([
+                    ApplyToBoth(v2.RandomResizedCrop(size=self.img_size)),
+                    ApplyToBoth(v2.RandomHorizontalFlip(p=1)),
+                    ApplyToBoth(v2.RandomVerticalFlip(p=1)),
+                    ApplyToBoth(v2.Compose([
                         v2.Pad((10, 20)),
                         v2.Resize(self.img_size)
-                    ]),
-                    v2.Compose([
+                    ])),
+                    ApplyToBoth(v2.Compose([
                         v2.RandomZoomOut(p=1, side_range=(1, 1.5)),
                         v2.Resize(self.img_size)
-                    ]),
-                    v2.RandomRotation(degrees=(-180, 180)),
-                    v2.RandomAffine(degrees=(-180, 180), translate=(0.1, 0.3), scale=(0.5, 1.75)),
-                    v2.RandomPerspective(p=1),
-                    v2.ElasticTransform(alpha=120),
-                    v2.ColorJitter(brightness=(1,2), contrast=(1,2)),
-                    v2.RandomPhotometricDistort(brightness=(1,2), contrast=(1,2), p=1),
-                    v2.RandomChannelPermutation(),
-                    v2.RandomGrayscale(p=1),
-                    v2.GaussianBlur(kernel_size=(3, 5), sigma=(0.1, 4.75)),
-                    v2.RandomInvert(p=1),
+                    ])),
+                    ApplyToBoth(v2.RandomRotation(degrees=(-180, 180))),
+                    ApplyToBoth(v2.RandomAffine(degrees=(-180, 180), translate=(0.1, 0.3), scale=(0.5, 1.75))),
+                    ApplyToBoth(v2.RandomPerspective(p=1)),
+                    ApplyToBoth(v2.ElasticTransform(alpha=120)),
+                    ApplyToImageOnly(v2.ColorJitter(brightness=(1,2), contrast=(1,2))),
+                    ApplyToImageOnly(v2.RandomPhotometricDistort(brightness=(1,2), contrast=(1,2), p=1)),
+                    ApplyToImageOnly(v2.RandomChannelPermutation()),
+                    ApplyToImageOnly(v2.RandomGrayscale(p=1)),
+                    ApplyToImageOnly(v2.GaussianBlur(kernel_size=(3, 5), sigma=(0.1, 4.75))),
+                    ApplyToImageOnly(v2.RandomInvert(p=1)),
                     v2.Lambda(lambda x: x),
                     ]),
                     v2.ToImage(), 
                     v2.ToDtype(torch.float32, scale=True),
-                    v2.Normalize(
+                    ApplyToImageOnly(v2.Normalize(
                         mean=self.mean,
                         std=self.std
-                    )
+                    ))
                 ])
         return v2.Compose([
             v2.ToImage(), 
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(
+            ApplyToImageOnly(v2.Normalize(
                 mean=self.mean,
                 std=self.std
-            )
+            ))
         ])
     def test_transform(self):
         return v2.Compose([
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(
+            ApplyToImageOnly(v2.Normalize(
                 mean=self.mean,
                 std=self.std
-            )
+            ))
         ])
 
     def __len__(self):
