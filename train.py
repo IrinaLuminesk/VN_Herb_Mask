@@ -44,6 +44,10 @@ def set_seed(seed=42):
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+features = []
+def hook_fn(module, input, output):
+    features.append(output)
+
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
     metrics = MetricCal(num_classes=num_classes)
@@ -51,12 +55,15 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
                                 format(epoch, end_epoch)):
 
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+        masks, has_masks = masks.to(device, non_blocking=True), has_masks.to(device, non_blocking=True)
         if batchWiseAug != None:
             inputs, targets = batchWiseAug(inputs, targets)
 
         optimizer.zero_grad()
+        features.clear()
         outputs = model(inputs)
-        loss = criterion(outputs, targets)
+        feature_maps = outputs[0]
+        loss = criterion(outputs, targets, feature_maps, masks, has_masks)
         loss.backward()
         optimizer.step()
 
@@ -151,6 +158,7 @@ def main():
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
     model = Model(len(CLASSES), model_type).to(device)
+    model.model.layer4.register_forward_hook(hook_fn)
     # model = CBAM_Resnet(len(CLASSES)).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
