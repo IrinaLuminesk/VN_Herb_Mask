@@ -66,9 +66,12 @@ class ImageMaskFolder(Dataset):
             #phần này đang tạo ra một list chứa tuples có 3 value là đường dẫn, mask và label. Nếu mask = -1 nghĩa là ảnh đó không có mask
         return samples
 
+    def create_zeros_mask(self, height, width):
+        return torch.zeros((height, width), dtype=torch.float32)
+
     def train_transform(self):
         if self.transform:
-            v2.Compose([
+            return v2.Compose([
                 v2.Resize(self.img_size),
                 v2.RandomChoice([
                     ApplyToBoth(v2.RandomResizedCrop(size=self.img_size)),
@@ -128,14 +131,16 @@ class ImageMaskFolder(Dataset):
         img = Image.open(img_path).convert("RGB")
         # to_Tensor = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
         # img = to_Tensor(img)
+        width, height = img.size #Đảo ngược lại do Pil trả về W, H không phải H, W như cv2
         if mask_path != -1:
             mask = Image.open(mask_path).convert("L")  # binary
             mask = torch.from_numpy(np.array(mask))    # uint8 {0,255}
             mask = (mask > 0).float()
-            has_mask = True
+            has_mask = True 
+            if not mask.any(): #Trường hợp có mask nhưng mask không có gì
+                has_mask = False
         else:
-            width, height = img.size #Đảo ngược lại do Pil trả về W, H không phải H, W như cv2
-            mask = torch.zeros((height, width), dtype=torch.float32)
+            mask = self.create_zeros_mask(height, width)
             has_mask = False
         img  = tv_tensors.Image(img)
         mask = tv_tensors.Mask(mask)
@@ -171,7 +176,7 @@ class DatasetLoader():
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=True if type == "train" else False,
             num_workers=2,          # START HERE
             pin_memory=True,
             persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram

@@ -6,10 +6,10 @@ DATASET:
   DATASET_NAME: VNHerb-data
   ROOT: "../DTLHerb"
   ROOT_FOLDER: "../DTLHerb"
-  TRAIN_FOLDER: "../train"
-  TEST_FOLDER: "../test"
-  TRAIN_MASK_FOLDER: "../mask_train"
-  TEST_MASK_FOLDER: "../mask_test"
+  TRAIN_FOLDER: "../train_ori"
+  TEST_FOLDER: "../test_ori"
+  TRAIN_MASK_FOLDER: "../train_mask"
+  TEST_MASK_FOLDER: "../test_mask"
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1
   SPLIT_RATIO: 0.7
