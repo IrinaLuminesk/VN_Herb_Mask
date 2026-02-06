@@ -1,5 +1,5 @@
 from torchvision.transforms import v2
-from Aug.FMix import FMix
+from aug_helper.FMix import FMix
 
 class BatchWiseAug:
     def __init__(self, config, num_classes):

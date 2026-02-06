@@ -13,6 +13,7 @@ from model_builder.model import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric2, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
+from loss_helper.SaliencyGuidedLoss import SaliencyGuidedLoss
 
 import torch
 import torch.nn as nn
@@ -153,9 +154,10 @@ def main():
     # model = CBAM_Resnet(len(CLASSES)).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
-    train_criterion = nn.CrossEntropyLoss()
-    if enabled_batchwise_transform:
-        train_criterion = SoftTargetCrossEntropy()
+    # train_criterion = nn.CrossEntropyLoss()
+    # if enabled_batchwise_transform:
+    #     train_criterion = SoftTargetCrossEntropy()
+    train_criterion = SaliencyGuidedLoss(type="train", enabled_batchwise_transform=enabled_batchwise_transform, alpha=0.4)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     if model_type not in [8, 9]:
