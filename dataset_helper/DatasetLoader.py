@@ -163,24 +163,44 @@ class DatasetLoader():
         self.transform = transform
 
     def dataset_loader(self, type):
-        dataset = ImageMaskFolder(
-            img_root=self.img_path,
-            mask_root=self.mask_path,
-            data_type=type,
-            std=self.std,
-            mean=self.mean,
-            img_size=self.img_size,
-            transform=self.transform
-        )
-        print("Total {0} image: {1}".format(type, len(dataset)))
-        loader = DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=True if type == "train" else False,
-            num_workers=2,          # START HERE
-            pin_memory=True,
-            persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
-            prefetch_factor=2
-        )
+        if type == "train":
+            dataset = ImageMaskFolder(
+                img_root=self.img_path,
+                mask_root=self.mask_path,
+                data_type=type,
+                std=self.std,
+                mean=self.mean,
+                img_size=self.img_size,
+                transform=self.transform
+            )
+            print("Total train image: {0}, train mask: {1}".format(type, len(dataset)))
+            loader = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=2,          # START HERE
+                pin_memory=True,
+                persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
+                prefetch_factor=2
+            )
+        else:
+            dataset = ImageMaskFolder(
+                img_root=self.img_path,
+                mask_root=self.mask_path,
+                data_type=type,
+                std=self.std,
+                mean=self.mean,
+                img_size=self.img_size,
+                transform=self.transform
+            )
+            print("Total test image: {0}, train mask: {1}".format(type, len(dataset)))
+            loader = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=2,          # START HERE
+                pin_memory=True,
+                persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
+            )
         return loader
         

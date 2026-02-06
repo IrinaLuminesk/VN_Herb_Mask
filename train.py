@@ -6,11 +6,11 @@ import numpy as np
 from tqdm import tqdm
 
 #Hàm tự định nghĩa
-# from Aug.BatchWiseAug import BatchWiseAug
+from aug_helper.BatchWiseAug import BatchWiseAug
 from utils.MetricCal import MetricCal
-# from learning_rate import PiecewiseScheduler, WarmupCosineScheduler
-# from model import Model
-# from utils.DatasetLoader import DatasetLoader
+from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
+from model_builder.model import Model
+from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric2, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
 
@@ -46,7 +46,7 @@ def set_seed(seed=42):
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
     metrics = MetricCal(num_classes=num_classes)
-    for inputs, targets in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
+    for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
@@ -66,7 +66,7 @@ def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
     metrics = MetricCal(num_classes=num_classes)
     with torch.no_grad():
-        for inputs, targets in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
+        for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
@@ -82,6 +82,8 @@ def main():
     root_path = config["DATASET"]["ROOT_FOLDER"]
     train_path = config["DATASET"]["TRAIN_FOLDER"]
     test_path = config["DATASET"]["TEST_FOLDER"]
+    train_mask_path = config["DATASET"]["TRAIN_MASK_FOLDER"]
+    test_mask_path = config["DATASET"]["TEST_MASK_FOLDER"]
     CLASSES = sorted([i for i in os.listdir(root_path)])
     mean: Sequence[float] = config["TRAIN"]["DATA"]["MEAN"]
     std: Sequence[float] = config["TRAIN"]["DATA"]["STD"]
@@ -124,114 +126,127 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # train_data = DatasetLoader(path=train_path, batch_size=batch_size, std=std, mean=mean, img_size=img_size, transform=enabled_transform)
-    # test_data = DatasetLoader(path=test_path, batch_size=batch_size, std=std, mean=mean, img_size=img_size)
+    train_data = DatasetLoader(
+        img_path=train_path,
+        mask_path=train_mask_path,
+        std=std,
+        mean=mean,
+        img_size=img_size,
+        batch_size=batch_size,
+        transform = enabled_transform)
+    test_data = DatasetLoader(
+        img_path=test_path,
+        mask_path=test_mask_path,
+        std=std,
+        mean=mean,
+        img_size=img_size,
+        batch_size=batch_size)
 
-    # training_loader = train_data.dataset_loader("train")
-    # testing_loader = test_data.dataset_loader("test")
+    training_loader = train_data.dataset_loader("train")
+    testing_loader = test_data.dataset_loader("test")
 
-    # batchWiseAug = None
-    # if enabled_batchwise_transform:
-    #     batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
+    batchWiseAug = None
+    if enabled_batchwise_transform:
+        batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
-    # model = Model(len(CLASSES), model_type).to(device)
-    # # model = CBAM_Resnet(len(CLASSES)).to(device)
+    model = Model(len(CLASSES), model_type).to(device)
+    # model = CBAM_Resnet(len(CLASSES)).to(device)
 
-    # eval_criterion = nn.CrossEntropyLoss()
-    # train_criterion = nn.CrossEntropyLoss()
-    # if enabled_batchwise_transform:
-    #     train_criterion = SoftTargetCrossEntropy()
-    # optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
+    eval_criterion = nn.CrossEntropyLoss()
+    train_criterion = nn.CrossEntropyLoss()
+    if enabled_batchwise_transform:
+        train_criterion = SoftTargetCrossEntropy()
+    optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
-    # if model_type not in [8, 9]:
-    #     lr_schedule = PiecewiseScheduler(
-    #         start_lr=Learning_rate_para["START_LR"],
-    #         max_lr=Learning_rate_para["MAX_LR"],
-    #         min_lr=Learning_rate_para["MIN_LR"],
-    #         rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
-    #         sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
-    #         exp_decay=Learning_rate_para["EXP_DECAY"]
-    #     )
-    #     print("Training using PiecewiseScheduler")
-    # else:
-    #     lr_schedule = WarmupCosineScheduler(
-    #         start_lr=Learning_rate_para["START_LR"],
-    #         max_lr=Learning_rate_para["MAX_LR"],
-    #         min_lr=Learning_rate_para["MIN_LR"],
-    #         rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
-    #         sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
-    #         total_epochs=end_epoch
-    #     )
-    #     print("Training using WarmupCosineScheduler")
-    # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
-    # best_acc = 0
+    if model_type not in [8, 9]:
+        lr_schedule = PiecewiseScheduler(
+            start_lr=Learning_rate_para["START_LR"],
+            max_lr=Learning_rate_para["MAX_LR"],
+            min_lr=Learning_rate_para["MIN_LR"],
+            rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
+            sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
+            exp_decay=Learning_rate_para["EXP_DECAY"]
+        )
+        print("Training using PiecewiseScheduler")
+    else:
+        lr_schedule = WarmupCosineScheduler(
+            start_lr=Learning_rate_para["START_LR"],
+            max_lr=Learning_rate_para["MAX_LR"],
+            min_lr=Learning_rate_para["MIN_LR"],
+            rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
+            sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
+            total_epochs=end_epoch
+        )
+        print("Training using WarmupCosineScheduler")
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
+    best_acc = 0
 
-    # if resume == True:
-    #     begin_epoch = Loading_Checkpoint(path=checkpoint_path,
-    #                                      model=model,
-    #                                      optimizer=optimizer,
-    #                                      scheduler=scheduler,
-    #                                      device=device)
-    #     best_acc = Get_Max_Acc(metrics_path)
+    if resume == True:
+        begin_epoch = Loading_Checkpoint(path=checkpoint_path,
+                                         model=model,
+                                         optimizer=optimizer,
+                                         scheduler=scheduler,
+                                         device=device)
+        best_acc = Get_Max_Acc(metrics_path)
 
-    # for epoch in range(begin_epoch, end_epoch):
-    #     train_metrics = train(epoch, 
-    #                             end_epoch, 
-    #                             batchWiseAug=batchWiseAug,
-    #                             model=model, 
-    #                             loader=training_loader, 
-    #                             criterion=train_criterion, 
-    #                             optimizer=optimizer, 
-    #                             device=device,
-    #                             num_classes=len(CLASSES))
-    #     train_loss, train_acc = train_metrics.avg_loss, train_metrics.avg_accuracy
-    #     scheduler.step()
-    #     print()
-    #     val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
-    #     val_loss, val_acc = val_metrics.avg_loss, val_metrics.avg_accuracy
-    #     print()
+    for epoch in range(begin_epoch, end_epoch):
+        train_metrics = train(epoch, 
+                                end_epoch, 
+                                batchWiseAug=batchWiseAug,
+                                model=model, 
+                                loader=training_loader, 
+                                criterion=train_criterion, 
+                                optimizer=optimizer, 
+                                device=device,
+                                num_classes=len(CLASSES))
+        train_loss, train_acc = train_metrics.avg_loss, train_metrics.avg_accuracy
+        scheduler.step()
+        print()
+        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
+        val_loss, val_acc = val_metrics.avg_loss, val_metrics.avg_accuracy
+        print()
 
-    #     if save_checkpoint == True:
-    #         Saving_Checkpoint(epoch=epoch, 
-    #                         model=model, 
-    #                         optimizer=optimizer, 
-    #                         scheduler=scheduler,
-    #                         last_epoch=epoch, 
-    #                         path=checkpoint_path)
+        if save_checkpoint == True:
+            Saving_Checkpoint(epoch=epoch, 
+                            model=model, 
+                            optimizer=optimizer, 
+                            scheduler=scheduler,
+                            last_epoch=epoch, 
+                            path=checkpoint_path)
 
-    #     print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
-    #         format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
-    #     print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
-    #         format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
-    #     if val_acc > best_acc:
-    #         if save_best == True:
-    #             print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
-    #                 format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-    #             Saving_Best(model, best_path)
-    #         else:
-    #             print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
-    #                 format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-    #         best_acc = val_acc
-    #         epochs_no_improve = 0  # reset patience
-    #     else:
-    #         epochs_no_improve += 1
-    #     if save_metrics:
-    #         Saving_Metric2(epoch=epoch, 
-    #                        train_loss=train_loss,
-    #                        train_acc=train_acc,
-    #                        train_precision=train_metrics.precision_macro,
-    #                        train_recall=train_metrics.recall_macro,
-    #                        train_f1=train_metrics.f1_macro, 
-    #                        val_loss=val_loss,
-    #                        val_acc=val_acc,
-    #                        val_precision=val_metrics.precision_macro,
-    #                        val_recall=val_metrics.recall_macro,
-    #                        val_f1=val_metrics.f1_macro, 
-    #                        path=metrics_path)
-    #     if epochs_no_improve >= patience and early_stopping == True:
-    #         print("Early stopping triggered at epoch {0}".format(epoch))
-    #         break
-    #     print()
+        print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
+            format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
+        print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
+            format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
+        if val_acc > best_acc:
+            if save_best == True:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+                Saving_Best(model, best_path)
+            else:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+            best_acc = val_acc
+            epochs_no_improve = 0  # reset patience
+        else:
+            epochs_no_improve += 1
+        if save_metrics:
+            Saving_Metric2(epoch=epoch, 
+                           train_loss=train_loss,
+                           train_acc=train_acc,
+                           train_precision=train_metrics.precision_macro,
+                           train_recall=train_metrics.recall_macro,
+                           train_f1=train_metrics.f1_macro, 
+                           val_loss=val_loss,
+                           val_acc=val_acc,
+                           val_precision=val_metrics.precision_macro,
+                           val_recall=val_metrics.recall_macro,
+                           val_f1=val_metrics.f1_macro, 
+                           path=metrics_path)
+        if epochs_no_improve >= patience and early_stopping == True:
+            print("Early stopping triggered at epoch {0}".format(epoch))
+            break
+        print()
 
     
 if __name__ == '__main__':
