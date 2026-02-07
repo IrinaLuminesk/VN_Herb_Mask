@@ -143,6 +143,7 @@ class ImageMaskFolder(Dataset):
             mask = self.create_zeros_mask(height, width)
             has_mask = False
         img  = tv_tensors.Image(img)
+        mask = mask.unsqueeze(0)
         mask = tv_tensors.Mask(mask)
         
         data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()

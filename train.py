@@ -62,7 +62,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         optimizer.zero_grad()
         features.clear()
         outputs = model(inputs)
-        feature_maps = outputs[0]
+        feature_maps = features[0]
         loss = criterion(outputs, targets, feature_maps, masks, has_masks)
         loss.backward()
         optimizer.step()
@@ -165,7 +165,11 @@ def main():
     # train_criterion = nn.CrossEntropyLoss()
     # if enabled_batchwise_transform:
     #     train_criterion = SoftTargetCrossEntropy()
-    train_criterion = SaliencyGuidedLoss(type="train", enabled_batchwise_transform=enabled_batchwise_transform, alpha=0.4)
+    train_criterion = SaliencyGuidedLoss(type="train", 
+                                         enabled_batchwise_transform=enabled_batchwise_transform, 
+                                         alpha=1,
+                                         beta=0.05,
+                                         gamma=0.01)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     if model_type not in [8, 9]:
