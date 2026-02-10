@@ -48,6 +48,11 @@ features = []
 def hook_fn(module, input, output):
     features.append(output)
 
+# feature_maps = None
+# def hook_fn(module, input, output):
+#     nonlocal feature_maps
+#     feature_maps = output
+
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
     metrics = MetricCal(num_classes=num_classes)
@@ -158,7 +163,7 @@ def main():
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
     model = Model(len(CLASSES), model_type).to(device)
-    model.model.layer4.register_forward_hook(hook_fn)
+    hook_handle = model.model.layer4.register_forward_hook(hook_fn)
     # model = CBAM_Resnet(len(CLASSES)).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
@@ -261,6 +266,7 @@ def main():
             print("Early stopping triggered at epoch {0}".format(epoch))
             break
         print()
+    hook_handle.remove()
 
     
 if __name__ == '__main__':

@@ -58,7 +58,7 @@ class SaliencyGuidedLoss(nn.Module):
             has_mask = has_masks.view(-1, 1).float()
             bce_align_loss = (bce * has_mask).sum() / (has_mask.sum() + 1e-8)
         else:
-            bce_align_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu')
+            bce_align_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu') #Yêu cầu mô hình cư xử bình thường
         return bce_align_loss
     
     def compute_dice_loss(self, attention_map, binary_masks, has_masks):
@@ -70,7 +70,7 @@ class SaliencyGuidedLoss(nn.Module):
                 binary_masks[valid_idx],
             )
         else:
-            dice_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu')
+            dice_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu') #Yêu cầu mô hình cư xử bình thường
         return dice_loss
 
     def forward(self, pred, target, feature_maps, binary_masks, has_masks):

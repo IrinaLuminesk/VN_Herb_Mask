@@ -1,7 +1,5 @@
-from cv2 import transform
 from torchvision.transforms import v2
-from torchvision import datasets
-from torch.utils.data import DataLoader, DistributedSampler, Dataset
+from torch.utils.data import DataLoader, Dataset
 import torch
 
 from utils.Utilities import get_num_workers
@@ -36,6 +34,7 @@ class ImageMaskFolder(Dataset):
         self.img_size = img_size
         self.data_type = data_type
         self.transform = transform
+        self.data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
 
         # Mimic ImageFolder indexing
         self.class_to_idx = self.Get_Class_idx()
@@ -129,8 +128,6 @@ class ImageMaskFolder(Dataset):
         img_path, mask_path, label = self.samples[idx]
 
         img = Image.open(img_path).convert("RGB")
-        # to_Tensor = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
-        # img = to_Tensor(img)
         width, height = img.size #Đảo ngược lại do Pil trả về W, H không phải H, W như cv2
         if mask_path != -1:
             mask = Image.open(mask_path).convert("L")  # binary
@@ -146,9 +143,9 @@ class ImageMaskFolder(Dataset):
         mask = mask.unsqueeze(0)
         mask = tv_tensors.Mask(mask)
         
-        data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
+        # data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
         
-        img, mask = data_transform(img, mask)
+        img, mask = self.data_transform(img, mask)
 
         return img, mask, label, has_mask
 
