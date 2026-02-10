@@ -46,7 +46,8 @@ def set_seed(seed=42):
 
 features = []
 def hook_fn(module, input, output):
-    features.append(output)
+    # features.append(output)
+    module.feature_maps = output
 
 # feature_maps = None
 # def hook_fn(module, input, output):
@@ -65,9 +66,10 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
             inputs, targets = batchWiseAug(inputs, targets)
 
         optimizer.zero_grad()
-        features.clear()
+        # features.clear()
         outputs = model(inputs)
-        feature_maps = features[0]
+        # feature_maps = features[0]
+        feature_maps = model.model.layer4.feature_maps
         loss = criterion(outputs, targets, feature_maps, masks, has_masks)
         loss.backward()
         optimizer.step()
@@ -163,6 +165,8 @@ def main():
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
     model = Model(len(CLASSES), model_type).to(device)
+    # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
+    model.model.layer4.feature_maps = None
     hook_handle = model.model.layer4.register_forward_hook(hook_fn)
     # model = CBAM_Resnet(len(CLASSES)).to(device)
 
@@ -221,7 +225,9 @@ def main():
         train_loss, train_acc = train_metrics.avg_loss, train_metrics.avg_accuracy
         scheduler.step()
         print()
+        hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
         val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
+        hook_handle = model.model.layer4.register_forward_hook(hook_fn)
         val_loss, val_acc = val_metrics.avg_loss, val_metrics.avg_accuracy
         print()
 
