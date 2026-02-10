@@ -166,9 +166,9 @@ def main():
 
     model = Model(len(CLASSES), model_type).to(device)
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
-    model.model.layer4.feature_maps = None
-    hook_handle = model.model.layer4.register_forward_hook(hook_fn)
-    # model = CBAM_Resnet(len(CLASSES)).to(device)
+    # model.model.layer4.feature_maps = None
+    # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
+    hook_handle = model.register_hook(hook_fn)
 
     eval_criterion = nn.CrossEntropyLoss()
     # train_criterion = nn.CrossEntropyLoss()
@@ -227,7 +227,8 @@ def main():
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
         val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
-        hook_handle = model.model.layer4.register_forward_hook(hook_fn)
+        # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
+        hook_handle = model.register_hook(hook_fn)
         val_loss, val_acc = val_metrics.avg_loss, val_metrics.avg_accuracy
         print()
 

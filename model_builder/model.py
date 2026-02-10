@@ -186,6 +186,52 @@ class Model(nn.Module):
                 )
                 print("Training on Inception V3 architecture")
                 return model
+    
+    def register_hook(self, hook_fn):
+        match self.model_type:
+            case 1: #Resnet50
+                self.model.layer4.feature_maps = None
+                hook_handle = self.model.layer4.register_forward_hook(hook_fn)
+                return hook_handle
+            case 2: #VGG16
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+            
+            case 3: #Xception
+                self.model.blocks[-1].feature_maps = None
+                hook_handle = self.model.blocks[-1].register_forward_hook(hook_fn)
+                return hook_handle
+            
+            case 4: #EfficientNetB4
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+            
+            case 5: #DenseNet201
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+            
+            case 6: #MobileNet
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+
+            case 7: #AlexNet
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+            
+            case 8: #ViT
+                return 8
+
+            case 9: #Swin transform
+                return 9
+            case 10: #Inception-v3
+                self.model.Mixed_7c.feature_maps = None
+                hook_handle = self.model.Mixed_7c.register_forward_hook(hook_fn)
+                return hook_handle
     def forward(self, x):
         return self.model(x)
     
