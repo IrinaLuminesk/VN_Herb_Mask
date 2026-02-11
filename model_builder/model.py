@@ -232,6 +232,35 @@ class Model(nn.Module):
                 self.model.Mixed_7c.feature_maps = None
                 hook_handle = self.model.Mixed_7c.register_forward_hook(hook_fn)
                 return hook_handle
+    def get_feature_maps(self):
+        match self.model_type:
+            case 1: #Resnet50
+                return self.model.layer4.feature_maps
+            case 2: #VGG16
+                return self.model.features.feature_maps
+            
+            case 3: #Xception
+                return self.model.blocks[-1].feature_maps
+            
+            case 4: #EfficientNetB4
+                return self.model.features.feature_maps
+            
+            case 5: #DenseNet201
+                return self.model.features.feature_maps
+            
+            case 6: #MobileNet
+                return self.model.features.feature_maps
+
+            case 7: #AlexNet
+                return self.model.features.feature_maps
+            
+            case 8: #ViT
+                return 8
+
+            case 9: #Swin transform
+                return 9
+            case 10: #Inception-v3
+                return self.model.Mixed_7c.feature_maps
     def forward(self, x):
         return self.model(x)
     

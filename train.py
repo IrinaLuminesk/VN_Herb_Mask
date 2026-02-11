@@ -69,7 +69,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         # features.clear()
         outputs = model(inputs)
         # feature_maps = features[0]
-        feature_maps = model.model.layer4.feature_maps
+        feature_maps = model.get_feature_maps()
         loss = criterion(outputs, targets, feature_maps, masks, has_masks)
         loss.backward()
         optimizer.step()
