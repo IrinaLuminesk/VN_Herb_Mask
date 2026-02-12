@@ -4,18 +4,25 @@ class MetricCal():
         self.num_classes = num_classes
         self.reset()
     def reset(self):
-        self.total_loss = 0.0
+        self.total_cls_loss = 0.0
+        self.total_bce_loss = 0.0
+        self.total_dice_loss = 0.0
+        self.total_overall_loss = 0.0
         self.correct = 0
-        self.correct_top5 = 0
         self.total = 0
+        self.total_bce_dice = 0
 
         self.tp_per_class = torch.zeros(self.num_classes)
         self.fp_per_class = torch.zeros(self.num_classes)
         self.fn_per_class = torch.zeros(self.num_classes)
 
-    def update(self, loss, outputs, targets, type="soft"):
+    def update_test(self, loss, outputs, targets, type="soft"):
+        #Dùng để tính classification loss
         batch_size = targets.size(0)
-        self.total_loss += loss.item() * batch_size
+        self.total_cls_loss += loss.item() * batch_size
+        
+
+        
         if type == "soft":
             pred_class = outputs.argmax(dim=1)
             true_class = targets.argmax(dim=1)
@@ -25,13 +32,6 @@ class MetricCal():
         self.correct += (pred_class == true_class).sum().item()
         self.total += batch_size
 
-        # for c in range(self.num_classes):
-        #     tp = ((pred_class == c) & (true_class == c)).sum().item()
-        #     fp = ((pred_class == c) & (true_class != c)).sum().item()
-        #     fn = ((pred_class != c) & (true_class == c)).sum().item()
-        #     self.tp_per_class[c] += tp
-        #     self.fp_per_class[c] += fp
-        #     self.fn_per_class[c] += fn
         
         pred = pred_class.detach().cpu()
         true = true_class.detach().cpu()
@@ -46,10 +46,64 @@ class MetricCal():
         self.fp_per_class += (cm.sum(dim=0) - cm.diag()).float()
         self.fn_per_class += (cm.sum(dim=1) - cm.diag()).float()
 
+    def update_train(self, cls_loss, bce_loss, dice_loss, outputs, targets, has_masks, type="soft"):
+        #Dùng để tính classification loss
+        batch_size = targets.size(0)
+        self.total_cls_loss += cls_loss.item() * batch_size
+        self.total += batch_size
+        
+        #Dùng để tính bce loss và dice loss
+        valid_count = has_masks.sum().item()
+        self.total_bce_loss  += bce_loss.item() * valid_count
+        self.total_dice_loss += dice_loss.item() * valid_count
+        self.total_bce_dice += valid_count
+
+        # self.total_overall_loss += overall_loss.item()
+
+        
+        if type == "soft":
+            pred_class = outputs.argmax(dim=1)
+            true_class = targets.argmax(dim=1)
+        else:
+            _, pred_class = outputs.max(1)
+            true_class = targets
+        self.correct += (pred_class == true_class).sum().item()
+
+        
+        pred = pred_class.detach().cpu()
+        true = true_class.detach().cpu()
+        
+        # Confusion matrix update
+        cm = torch.bincount(
+            self.num_classes * true + pred,
+            minlength=self.num_classes ** 2
+        ).reshape(self.num_classes, self.num_classes)
+        
+        self.tp_per_class += cm.diag().float()
+        self.fp_per_class += (cm.sum(dim=0) - cm.diag()).float()
+        self.fn_per_class += (cm.sum(dim=1) - cm.diag()).float()
+
+
+
     @property
-    def avg_loss(self):
+    def avg_cls_loss(self):
         """Average loss over all accumulated batches."""
-        return self.total_loss / self.total if self.total > 0 else 0.0
+        return self.total_cls_loss / self.total if self.total > 0 else 0.0
+
+    @property
+    def avg_bce_loss(self):
+        return self.avg_bce_loss / (self.total_bce_dice + 1e-8) if self.total_bce_dice > 0 else 0.0
+
+    @property
+    def avg_dice_loss(self):
+        return self.avg_dice_loss / (self.total_bce_dice + 1e-8) if self.total_bce_dice > 0 else 0.0
+
+    def overall_loss(self, alpha, beta, gamma):
+        return (
+            alpha * self.avg_cls_loss
+            + beta * self.avg_bce_loss
+            + gamma * self.avg_dice_loss
+        )
 
     @property
     def avg_accuracy(self):

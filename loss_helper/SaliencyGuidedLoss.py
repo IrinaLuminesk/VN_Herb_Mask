@@ -88,5 +88,5 @@ class SaliencyGuidedLoss(nn.Module):
 
         total_loss = self.alpha * cls_loss + self.beta * bce_align_loss + self.gamma * dice_loss
 
-        return total_loss
+        return total_loss, cls_loss, bce_align_loss, dice_loss
     

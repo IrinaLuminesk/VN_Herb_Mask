@@ -97,19 +97,26 @@ def Saving_Metric2(epoch,
                    train_precision,
                    train_recall,
                    train_f1, 
-                   train_loss, 
+                   train_cls_loss,
+                   train_bce_loss,
+                   train_dice_loss,
+                   train_overall_loss, 
                    val_acc,
                    val_precision,
                    val_recall,
                    val_f1, 
-                   val_loss, path):
+                   val_loss,
+                   path):
     Create_Folder(path=path)
     if os.path.exists(path):
         metrics_df = pd.read_csv(path)
     else:
         metrics_df = pd.DataFrame({
             'epoch': pd.Series(dtype='int'),
-            'train_loss': pd.Series(dtype='float'),
+            'train_cls_loss': pd.Series(dtype='float'),
+            'train_bce_loss': pd.Series(dtype='float'),
+            'train_dice_loss': pd.Series(dtype='float'),
+            'train_overall_loss': pd.Series(dtype='float'),
             'train_acc': pd.Series(dtype='float'),
             'train_precision': pd.Series(dtype='float'),
             'train_recall': pd.Series(dtype='float'),
@@ -123,7 +130,10 @@ def Saving_Metric2(epoch,
         })
     new_row = {
         'epoch': epoch,
-        'train_loss': train_loss,
+        'train_cls_loss': train_cls_loss,
+        'train_bce_loss': train_bce_loss,
+        'train_dice_loss': train_dice_loss,
+        'train_overall_loss': train_overall_loss,
         'train_acc': train_acc,
         'train_precision': train_precision,
         'train_recall': train_recall,
