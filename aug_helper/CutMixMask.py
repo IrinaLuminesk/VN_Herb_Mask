@@ -18,11 +18,14 @@ class CutMixMask(Transform):
         mixed_image = self.transform_images(images=images, box=box)
         mixed_mask = self.transform_masks(masks=masks, box=box)
         mixed_labels = self.transform_labels(labels=labels, lam=lam)
-        return mixed_image, mixed_mask, mixed_labels
+
+        has_masks = mixed_mask.any(dim=(1, 2, 3))
+
+        return mixed_image, mixed_mask, mixed_labels, has_masks
     
     # Dùng để tạo ra tọa độ và lam 
     def make_params(self, images, masks):
-        lam = float(self._dist.sample(()))  # type: ignore[arg-type]
+        lam = float(torch.distributions.Beta(torch.tensor([alpha]), torch.tensor([alpha])).sample())  # type: ignore[arg-type]
 
         H_images, W_images = query_size(images)
         H_masks, W_masks = query_size(masks)
@@ -39,11 +42,11 @@ class CutMixMask(Transform):
 
         x1 = int(torch.clamp(r_x - r_w_half, min=0))
         y1 = int(torch.clamp(r_y - r_h_half, min=0))
-        x2 = int(torch.clamp(r_x + r_w_half, max=W))
-        y2 = int(torch.clamp(r_y + r_h_half, max=H))
+        x2 = int(torch.clamp(r_x + r_w_half, max=W_images))
+        y2 = int(torch.clamp(r_y + r_h_half, max=H_images))
         box = (x1, y1, x2, y2)
 
-        lam_adjusted = float(1.0 - (x2 - x1) * (y2 - y1) / (W * H))
+        lam_adjusted = float(1.0 - (x2 - x1) * (y2 - y1) / (W_images * H_images))
         return {
             "box": box,
             "lam_adjusted": lam_adjusted
@@ -65,7 +68,7 @@ class CutMixMask(Transform):
     
     def transform_labels(self, labels, lam):
         if labels.ndim == 1:
-            label = F.one_hot(label, num_classes=self.number_of_class)  # type: ignore[arg-type]
+            labels = F.one_hot(labels, num_classes=self.number_of_class)  # type: ignore[arg-type]
         if not labels.dtype.is_floating_point:
-            label = labels.float()
+            labels = labels.float()
         return labels.roll(1, 0).mul_(1.0 - lam).add_(labels.mul(lam))
