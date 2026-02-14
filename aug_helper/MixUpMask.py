@@ -8,7 +8,7 @@ class MixUpMask(Transform):
     def __init__(self, number_of_class, alpha) -> None:
         super().__init__()
         self.number_of_class = number_of_class
-        self.apply = alpha
+        self.alpha = alpha
     def forward(self, images: torch.Tensor, masks: torch.Tensor, labels: torch.Tensor):
         if images.ndim != 4:
             raise ValueError("Expected images of shape [B, C, H, W]")
@@ -24,7 +24,7 @@ class MixUpMask(Transform):
     
     # Dùng để tạo ra tọa độ và lam 
     def make_params(self):
-        lam = float(torch.distributions.Beta(torch.tensor([alpha]), torch.tensor([alpha])).sample())  # type: ignore[arg-type]
+        lam = float(torch.distributions.Beta(torch.tensor([self.alpha]), torch.tensor([self.alpha])).sample())  # type: ignore[arg-type]
 
         return {
             "lam": lam
