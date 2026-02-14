@@ -52,12 +52,12 @@ class ImageMaskFolder(Dataset):
         samples = []
         imgs = [(img, img.stem) for img in self.img_root.rglob("*") if img.is_file()] #(Đường dẫn, Guid)
         masks = [(mask, mask.stem) for mask in self.mask_root.rglob("*") if mask.is_file] #(Đường dẫn, Guid)
-
-        masks = self.align_img_mask_arrays(imgs, masks, -1)
-        imgs = [i for i, _ in imgs]
         print("Found {0} images, {1} masks belong to {2} classes".format(len(imgs),
                                                                         len(masks),
                                                                         len(self.class_to_idx)))
+        masks = self.align_img_mask_arrays(imgs, masks, -1)
+        imgs = [i for i, _ in imgs]
+
         for img, mask in zip(imgs, masks):
             #Đường dẫn của ảnh và label
             class_name = img.parent.name #Tên label
@@ -173,9 +173,9 @@ class DatasetLoader():
                 img_size=self.img_size,
                 transform=self.transform
             )
-            print("Total train image: {0}, train mask: {1}".format(type, len(dataset)))
+            # print("Total train image: {0}, train mask: {1}".format(len(train_dataset), len(train_dataset)))
             loader = DataLoader(
-                dataset,
+                train_dataset,
                 batch_size=self.batch_size,
                 shuffle=True,
                 num_workers=2,          # START HERE
@@ -193,9 +193,9 @@ class DatasetLoader():
                 img_size=self.img_size,
                 transform=self.transform
             )
-            print("Total test image: {0}, train mask: {1}".format(type, len(dataset)))
+            # print("Total test image: {0}, train mask: {1}".format(len(test_dataset), len(test_dataset)))
             loader = DataLoader(
-                dataset,
+                test_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers=2,          # START HERE
