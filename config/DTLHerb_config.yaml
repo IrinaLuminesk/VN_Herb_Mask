@@ -51,7 +51,7 @@ TRAIN:
     CUTMIX: [TRUE, 0.5]
     MIXUP: [TRUE, 0.5]
     FMIX: [TRUE, 0.5]
-    ENABLED: FALSE
+    ENABLED: TRUE
   LEARNING_RATE:
     PieceWise:
       START_LR: 0.0001

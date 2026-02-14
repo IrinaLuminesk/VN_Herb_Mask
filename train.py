@@ -61,10 +61,10 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
                                 format(epoch, end_epoch)):
 
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
-        masks, has_masks = masks.to(device, non_blocking=True), has_masks.to(device, non_blocking=True)
+        masks = masks.to(device, non_blocking=True)
         if batchWiseAug != None:
-            inputs, targets = batchWiseAug(inputs, targets)
-
+            inputs, masks, targets, has_masks = batchWiseAug(inputs, masks, targets)
+        has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
         # features.clear()
         outputs = model(inputs)

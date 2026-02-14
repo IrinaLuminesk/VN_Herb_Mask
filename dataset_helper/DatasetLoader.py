@@ -104,6 +104,7 @@ class ImageMaskFolder(Dataset):
                     ))
                 ])
         return v2.Compose([
+            v2.Resize(self.img_size),
             v2.ToImage(), 
             v2.ToDtype(torch.float32, scale=True),
             ApplyToImageOnly(v2.Normalize(
@@ -113,6 +114,7 @@ class ImageMaskFolder(Dataset):
         ])
     def test_transform(self):
         return v2.Compose([
+            v2.Resize(self.img_size),
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
             ApplyToImageOnly(v2.Normalize(
@@ -162,7 +164,7 @@ class DatasetLoader():
 
     def dataset_loader(self, type):
         if type == "train":
-            dataset = ImageMaskFolder(
+            train_dataset = ImageMaskFolder(
                 img_root=self.img_path,
                 mask_root=self.mask_path,
                 data_type=type,
@@ -182,7 +184,7 @@ class DatasetLoader():
                 prefetch_factor=2
             )
         else:
-            dataset = ImageMaskFolder(
+            test_dataset = ImageMaskFolder(
                 img_root=self.img_path,
                 mask_root=self.mask_path,
                 data_type=type,
