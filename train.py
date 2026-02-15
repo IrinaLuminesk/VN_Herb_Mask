@@ -7,7 +7,8 @@ from tqdm import tqdm
 
 #Hàm tự định nghĩa
 from aug_helper.BatchWiseAug import BatchWiseAug
-from utils.MetricCal import MetricCal
+# from utils.MetricCal import MetricCal
+from utils.MetricCalV2 import MetricCalV2
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 from model_builder.model import Model
 from dataset_helper.DatasetLoader import DatasetLoader
@@ -56,7 +57,7 @@ def hook_fn(module, input, output):
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
-    metrics = MetricCal(num_classes=num_classes)
+    metrics = MetricCalV2(num_classes=num_classes, device=device)
     for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
@@ -85,7 +86,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
-    metrics = MetricCal(num_classes=num_classes)
+    metrics = MetricCalV2(num_classes=num_classes, device=device)
     with torch.no_grad():
         for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
