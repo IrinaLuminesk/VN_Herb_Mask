@@ -56,7 +56,7 @@ class SaliencyGuidedLoss(nn.Module):
 
             # mask samples without GT masks
             has_mask = has_masks.view(-1, 1).float()
-            bce_align_loss = (bce * has_mask).sum() / (has_mask.sum() + 1e-8)
+            bce_align_loss = (bce * has_mask).sum() / has_mask.sum()
         else:
             bce_align_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu') #Yêu cầu mô hình cư xử bình thường
         return bce_align_loss

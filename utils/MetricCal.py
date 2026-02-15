@@ -92,7 +92,7 @@ class MetricCal():
 
     @property
     def avg_bce_loss(self):
-        return self.total_bce_loss / (self.total_bce_dice + 1e-8) if self.total_bce_dice > 0 else 0.0
+        return self.total_bce_loss / self.total_bce_dice if self.total_bce_dice > 0 else 0.0
 
     @property
     def avg_dice_loss(self):
