@@ -36,7 +36,7 @@ class Resnet50_BAM(nn.Module):
                     nn.Linear(1024, self.num_classes),
                 )
 
-            print("Training on Resnet50 architecture")
+            print("Training on Resnet50 BAM architecture")
     def augment_feature(self, x):
         if self.training: #Biến này kế thừa
             noise = 0.01 * torch.randn_like(x)

@@ -4,12 +4,12 @@ PRINT_FREQ: 1
 
 DATASET:
   DATASET_NAME: VNHerb-data
-  ROOT: "../DTLHerb"
-  ROOT_FOLDER: "../DTLHerb"
-  TRAIN_FOLDER: "../train_ori"
-  TEST_FOLDER: "../test_ori"
-  TRAIN_MASK_FOLDER: "../train_mask"
-  TEST_MASK_FOLDER: "../test_mask"
+  ROOT: "/content/dataset"
+  ROOT_FOLDER: "/content/dataset"
+  TRAIN_FOLDER: "/content/train_ori"
+  TEST_FOLDER: "/content/test_ori"
+  TRAIN_MASK_FOLDER: "/content/train_mask"
+  TEST_MASK_FOLDER: "/content/test_mask"
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1
   SPLIT_RATIO: 0.7
@@ -31,7 +31,7 @@ TRAIN:
     MEAN:  [0.66565923, 0.66174304, 0.57747589]
     STD:  [0.20152938, 0.20600946, 0.209565  ]
   TRAIN_PARA:
-    MODEL_TYPE: 1 #{1: Resnet50, 2: DenseNet201, 3: VGG19, 4: ConvNeXt_Large, 5: MobileNet}
+    MODEL_TYPE: 11 #{1: Resnet50, 2: DenseNet201, 3: VGG19, 4: ConvNeXt_Large, 5: MobileNet}
     BEGIN_EPOCH: 0
     END_EPOCH: 50
     LAST_EPOCH: 0
