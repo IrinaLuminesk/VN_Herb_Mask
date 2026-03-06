@@ -8,7 +8,9 @@ from torchvision.models import resnet50, ResNet50_Weights,\
     efficientnet_b4, EfficientNet_B4_Weights, \
     vit_b_16, ViT_B_16_Weights, \
     inception_v3, Inception_V3_Weights
-import timm         
+import timm
+
+from model_builder.resnet_BAM import Resnet50_BAM         
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type):
@@ -186,6 +188,9 @@ class Model(nn.Module):
                 )
                 print("Training on Inception V3 architecture")
                 return model
+            case 11: #Resnet50 Bam
+                model = Resnet50_BAM(num_classes=self.num_classes)
+                return model
     
     def register_hook(self, hook_fn):
         match self.model_type:
@@ -232,6 +237,10 @@ class Model(nn.Module):
                 self.model.Mixed_7c.feature_maps = None
                 hook_handle = self.model.Mixed_7c.register_forward_hook(hook_fn)
                 return hook_handle
+            case 11: 
+                self.model.avgpool.feature_maps = None
+                hook_handle = self.model.avgpool.register_forward_hook(hook_fn)
+                return hook_handle
     def get_feature_maps(self):
         match self.model_type:
             case 1: #Resnet50
@@ -261,6 +270,8 @@ class Model(nn.Module):
                 return 9
             case 10: #Inception-v3
                 return self.model.Mixed_7c.feature_maps
+            case 11:
+                return self.model.avgpool.feature_maps
     def forward(self, x):
         return self.model(x)
     
