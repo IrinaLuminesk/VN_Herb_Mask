@@ -2,9 +2,9 @@ import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights
 import torch
 
-from attention_module.attention import BidirectionalAttentionModule
+from attention_module.attention import CBAM
 
-class Resnet50_BAM(nn.Module):
+class Resnet50_CBAM(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
@@ -23,9 +23,9 @@ class Resnet50_BAM(nn.Module):
             self.layer1 = backbone_model.layer1
             self.layer2 = backbone_model.layer2
             self.layer3 = backbone_model.layer3
-            self.BAM_layer1 = BidirectionalAttentionModule(1024)
+            self.CBAM_layer1 = CBAM(1024)
             self.layer4 = backbone_model.layer4
-            self.BAM_layer2 = BidirectionalAttentionModule(2048)
+            self.CBAM_layer2 = CBAM(2048)
 
             self.avgpool = backbone_model.avgpool
             self.fc = nn.Sequential(
@@ -37,25 +37,17 @@ class Resnet50_BAM(nn.Module):
                 )
 
             print("Training on Resnet50 BAM architecture")
-    def augment_feature(self, x):
-        if self.training: #Biến này kế thừa
-            noise = 0.01 * torch.randn_like(x)
-            return x + noise
 
-        return x
     def forward(self, x):
         x = self.model_input(x)
         x = self.layer1(x)
         x= self.layer2(x)
         x = self.layer3(x)
-        #BAM
-        x_aug = self.augment_feature(x)
-        x = self.BAM_layer1(x, x_aug)
+        x = self.CBAM_layer1(x)
 
         x = self.layer4(x)
 
-        x_aug = self.augment_feature(x)
-        x = self.BAM_layer2(x, x_aug)
+        x = self.CBAM_layer2(x)
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)

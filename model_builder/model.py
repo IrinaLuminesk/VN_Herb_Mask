@@ -238,8 +238,8 @@ class Model(nn.Module):
                 hook_handle = self.model.Mixed_7c.register_forward_hook(hook_fn)
                 return hook_handle
             case 11: 
-                self.model.avgpool.feature_maps = None
-                hook_handle = self.model.avgpool.register_forward_hook(hook_fn)
+                self.model.BAM_layer2.feature_maps = None
+                hook_handle = self.model.BAM_layer2.register_forward_hook(hook_fn)
                 return hook_handle
     def get_feature_maps(self):
         match self.model_type:
@@ -271,7 +271,7 @@ class Model(nn.Module):
             case 10: #Inception-v3
                 return self.model.Mixed_7c.feature_maps
             case 11:
-                return self.model.avgpool.feature_maps
+                return self.model.BAM_layer2.feature_maps
     def forward(self, x):
         return self.model(x)
     

@@ -84,4 +84,4 @@ class BidirectionalAttentionModule(nn.Module):
         fused = torch.cat([f1, f2], dim=1)
         fused = self.fusion(fused)
 
-        return fused
+        return fused + f1
