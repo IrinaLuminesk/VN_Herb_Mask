@@ -44,9 +44,13 @@ class CBAM(nn.Module):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
         self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
     def forward(self, x):
-        output = self.channel_attention_module(x)
-        output = self.spatial_attention_module(output)
-        return output + x
+        channel_att = self.channel_attention_module(x)
+        x = channel_att * x
+
+        spatial_att = self.spatial_attention_module(x)
+        x = spatial_att * x
+
+        return x
     
 
 class BidirectionalAttentionModule(nn.Module):
@@ -84,4 +88,37 @@ class BidirectionalAttentionModule(nn.Module):
         fused = torch.cat([f1, f2], dim=1)
         fused = self.fusion(fused)
 
-        return fused + f1
+        return fused
+    
+class BCBAM(nn.Module):
+    def __init__(self, channels, r=8):
+        super().__init__()
+
+        self.channels = channels
+        self.r = r
+        self.spatial_attention_module = Spatial_Attention_Module(bias=False)
+        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
+
+        self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
+
+    def forward(self, x):
+        #Branch 1
+        channel_att1 = self.channel_attention_module(x)
+        x1 = channel_att1 * x
+
+        spatial_att1 = self.spatial_attention_module(x1)
+        x1 = spatial_att1 * x1
+
+        #Branch 2
+        spatial_att2 = self.spatial_attention_module(x)
+        x2 = spatial_att2 * x
+        
+        channel_att2 = self.channel_attention_module(x2)
+        x2 = channel_att2 * x2
+        
+        #Concat
+        x = torch.cat((x1,x2), dim=1)
+        
+        x = self.fusion(x) #Đưa channel từ 2C do concatenate về thành C
+
+        return x
