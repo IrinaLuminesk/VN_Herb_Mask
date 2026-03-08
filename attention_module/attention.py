@@ -37,24 +37,25 @@ class Channel_Attention_Module(nn.Module):
         return output
 
 class CBAM(nn.Module):
-    def __init__(self, channels, r=8):
+    def __init__(self, channels, r=4):
         super().__init__()
         self.channels = channels
         self.r = r
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
         self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
     def forward(self, x):
+        ori_x = x
         channel_att = self.channel_attention_module(x)
         x = channel_att * x
 
         spatial_att = self.spatial_attention_module(x)
         x = spatial_att * x
 
-        return x
+        return x + ori_x
     
 
 class BidirectionalAttentionModule(nn.Module):
-    def __init__(self, channels, r=8):
+    def __init__(self, channels, r=4):
         super().__init__()
 
         self.channels = channels
@@ -62,13 +63,18 @@ class BidirectionalAttentionModule(nn.Module):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
         self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
 
-        self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
+        # self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
+        self.fusion = nn.Sequential(
+            nn.Conv2d(channels*2, channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(channels)
+        )
 
     def forward(self, f1, f2):
         """
         f1: original feature map
         f2: augmented feature map
         """
+        x = f1 #original feature
 
         # ---- Bidirectional Spatial Attention ----
         s1 = self.spatial_attention_module(f2)   # attention from f2 to f1
@@ -88,10 +94,10 @@ class BidirectionalAttentionModule(nn.Module):
         fused = torch.cat([f1, f2], dim=1)
         fused = self.fusion(fused)
 
-        return fused
+        return fused + x
     
 class BCBAM(nn.Module):
-    def __init__(self, channels, r=8):
+    def __init__(self, channels, r=4):
         super().__init__()
 
         self.channels = channels
@@ -99,7 +105,11 @@ class BCBAM(nn.Module):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
         self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
 
-        self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
+        # self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
+        self.fusion = nn.Sequential(
+            nn.Conv2d(channels*2, channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(channels)
+        )
 
     def forward(self, x):
         #Branch 1
@@ -115,10 +125,10 @@ class BCBAM(nn.Module):
         
         channel_att2 = self.channel_attention_module(x2)
         x2 = channel_att2 * x2
-        
+        ori_x = x
         #Concat
         x = torch.cat((x1,x2), dim=1)
         
         x = self.fusion(x) #Đưa channel từ 2C do concatenate về thành C
 
-        return x
+        return x + ori_x
