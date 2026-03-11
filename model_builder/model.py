@@ -1,16 +1,10 @@
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights,\
-    densenet201, DenseNet201_Weights,\
-    vgg16, VGG16_Weights, \
-    alexnet, AlexNet_Weights,\
-    mobilenet_v2, MobileNet_V2_Weights, \
-    swin_v2_b, Swin_V2_B_Weights, \
-    efficientnet_b4, EfficientNet_B4_Weights, \
-    vit_b_16, ViT_B_16_Weights, \
-    inception_v3, Inception_V3_Weights
-import timm
+from torchvision.models import resnet18, ResNet18_Weights
 
-from model_builder.resnet_BAM import Resnet50_BAM         
+
+from model_builder.resnet_BAM import Resnet18_BAM
+from model_builder.resnet_BCAM import Resnet18_BCBAM  
+from model_builder.resnet_CBAM import Resnet18_CBAM       
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type):
@@ -20,258 +14,59 @@ class Model(nn.Module):
         self.model = self.build_model() 
     def build_model(self):
         match self.model_type:
-            case 1: #Resnet50
-                resnet_weights = ResNet50_Weights.DEFAULT
-                model = resnet50(weights=resnet_weights)
-
-                in_features = model.fc.in_features #2048
+            case 1: #Resnet18 Normal
+                resnet_weights = ResNet18_Weights.DEFAULT
+                model = resnet18(weights=resnet_weights)
+                in_features = model.fc.in_features #512
                 fc = nn.Sequential(
-                    nn.Linear(in_features, 1024),
-                    nn.BatchNorm1d(1024),
+                    nn.Linear(in_features, 512),
+                    nn.BatchNorm1d(512),
                     nn.ReLU(),
                     nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes),
+                    nn.Linear(512, self.num_classes),
                 )
                 model.fc = fc
-                print("Training on Resnet50 architecture")
+                print("Training on Resnet18 architecture")
                 return model
-            case 2: #VGG16
-                vgg16_weights = VGG16_Weights.DEFAULT
-                model = vgg16(weights=vgg16_weights)
-
-                # vgg16_classifier = list(model.classifier.children())[:6]
-                in_features = model.classifier[0].in_features #25088
-
-                model.classifier = nn.Sequential(
-                    # *vgg16_classifier,
-                    # nn.Linear(in_features, 2048, bias=True),
-                    # nn.BatchNorm1d(2048),
-                    # nn.ReLU(),
-                    # nn.Dropout(0.4),
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on VGG16 architecture")
+            case 2: #Resnet50 Bam
+                model = Resnet18_BAM(num_classes=self.num_classes)
+                print("Training on Resnet18 with BAM")
                 return model
-            
-            case 3: #Xception
-                model = timm.create_model(
-                    'xception65',
-                    pretrained=True
-                )
-
-                in_features = model.get_classifier().in_features
-                
-                Xception_classifier = model.head
-                Xception_classifier = list(Xception_classifier.children())[:2]
-
-                model.head = nn.Sequential(
-                    *Xception_classifier,
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on Xception65 architecture")
+            case 3: #Resnet50 CBAM
+                model = Resnet18_CBAM(num_classes=self.num_classes)
+                print("Training on Resnet18 with CBAM")
                 return model
-            
-            case 4: #EfficientNetB4
-                model = efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)
-
-                in_features = model.classifier[1].in_features #1792
-
-                model.classifier = nn.Sequential(
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on EfficientNetB4 architecture")
+            case 4: #Resnet50 BCAM
+                model = Resnet18_BCBAM(num_classes=self.num_classes)
+                print("Training on Resnet18 with BCBAM")
                 return model
-            
-            case 5: #DenseNet201
-                densenet_Weights = DenseNet201_Weights.DEFAULT
-                model = densenet201(weights=densenet_Weights)
-
-                in_features = model.classifier.in_features #1920
-                fc = nn.Sequential(
-                    nn.Linear(in_features, 1024),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes),
-                )
-                model.classifier = fc
-                print("Training on DenseNet201 architecture")
-                return model
-            
-            case 6: #MobileNet
-                mobilenetv2_weights = MobileNet_V2_Weights.DEFAULT
-                model = mobilenet_v2(weights=mobilenetv2_weights)
-
-                in_features = model.classifier[1].in_features #1280
-
-                model.classifier = nn.Sequential(
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on MobileNetV2 architecture")
-                return model
-
-            case 7: #AlexNet
-                alexnet_weight = AlexNet_Weights.DEFAULT
-                model = alexnet(weights= alexnet_weight)
-
-                in_features = model.classifier[1].in_features #9216
-
-                model.classifier = nn.Sequential(
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on AlexNet architecture")
-                return model
-            
-            case 8: #ViT
-                ViTWeight = ViT_B_16_Weights.DEFAULT
-                model = vit_b_16(weights=ViTWeight)
-                
-                in_features = model.heads[0].in_features #768
-
-                # model.heads = nn.Linear(in_features, self.num_classes)
-                model.heads = nn.Sequential(
-                    nn.LayerNorm(in_features),
-                    nn.Linear(in_features, 1024),
-                    nn.GELU(),
-                    nn.Dropout(0.1),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on ViT architecture")
-                return model
-
-            case 9: #Swin transform
-                swinv2Weight = Swin_V2_B_Weights.DEFAULT
-                model = swin_v2_b(weights=swinv2Weight)
-
-                in_features = model.head.in_features #1024
-                # model.head = nn.Linear(in_features, self.num_classes, bias=True)
-                model.head = nn.Sequential(
-                    nn.LayerNorm(in_features),
-                    nn.Linear(in_features, 1024),
-                    nn.GELU(),
-                    nn.Dropout(0.1),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on Swin architecture")
-                return model
-            case 10: #Inception-v3
-                inception_v3_weight = Inception_V3_Weights.DEFAULT
-                model = inception_v3(weights=inception_v3_weight)
-
-                in_features = model.fc.in_features #2048
-                model.fc = nn.Sequential(
-                    nn.Linear(in_features, 1024, bias=True),
-                    nn.BatchNorm1d(1024),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(1024, self.num_classes)
-                )
-                print("Training on Inception V3 architecture")
-                return model
-            case 11: #Resnet50 Bam
-                model = Resnet50_BAM(num_classes=self.num_classes)
-                return model
-    
     def register_hook(self, hook_fn):
         match self.model_type:
-            case 1: #Resnet50
+            case 1: 
                 self.model.layer4.feature_maps = None
                 hook_handle = self.model.layer4.register_forward_hook(hook_fn)
-                return hook_handle
-            case 2: #VGG16
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            
-            case 3: #Xception
-                self.model.blocks[-1].feature_maps = None
-                hook_handle = self.model.blocks[-1].register_forward_hook(hook_fn)
-                return hook_handle
-            
-            case 4: #EfficientNetB4
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            
-            case 5: #DenseNet201
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            
-            case 6: #MobileNet
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-
-            case 7: #AlexNet
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            
-            case 8: #ViT
-                return 8
-
-            case 9: #Swin transform
-                return 9
-            case 10: #Inception-v3
-                self.model.Mixed_7c.feature_maps = None
-                hook_handle = self.model.Mixed_7c.register_forward_hook(hook_fn)
-                return hook_handle
-            case 11: 
+            case 2: 
                 self.model.BAM_layer2.feature_maps = None
                 hook_handle = self.model.BAM_layer2.register_forward_hook(hook_fn)
                 return hook_handle
+            case 3:
+                self.model.CBAM_layer2.feature_maps = None
+                hook_handle = self.model.CBAM_layer2.register_forward_hook(hook_fn)
+                return hook_handle
+            case 4:
+                self.model.BCBAM_layer2.feature_maps = None
+                hook_handle = self.model.BCBAM_layer2.register_forward_hook(hook_fn)
+                return hook_handle
     def get_feature_maps(self):
         match self.model_type:
-            case 1: #Resnet50
+            case 1:
                 return self.model.layer4.feature_maps
-            case 2: #VGG16
-                return self.model.features.feature_maps
-            
-            case 3: #Xception
-                return self.model.blocks[-1].feature_maps
-            
-            case 4: #EfficientNetB4
-                return self.model.features.feature_maps
-            
-            case 5: #DenseNet201
-                return self.model.features.feature_maps
-            
-            case 6: #MobileNet
-                return self.model.features.feature_maps
-
-            case 7: #AlexNet
-                return self.model.features.feature_maps
-            
-            case 8: #ViT
-                return 8
-
-            case 9: #Swin transform
-                return 9
-            case 10: #Inception-v3
-                return self.model.Mixed_7c.feature_maps
-            case 11:
+            case 2:
                 return self.model.BAM_layer2.feature_maps
+            case 3:
+                return self.model.CBAM_layer2.feature_maps
+            case 4:
+                return self.model.BCBAM_layer2.feature_maps
     def forward(self, x):
         return self.model(x)
     

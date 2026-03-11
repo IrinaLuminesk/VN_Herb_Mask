@@ -1,5 +1,4 @@
 import torch.nn as nn
-import timm
 
 from model_builder.resnet_BAM import Resnet50_BAM
 from model_builder.resnet_BCAM import Resnet50_BCBAM  
