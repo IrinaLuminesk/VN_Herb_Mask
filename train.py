@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from timm.loss.cross_entropy import SoftTargetCrossEntropy
+# from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 def parse_args():
     parser = argparse.ArgumentParser(description="A simple argparse example")

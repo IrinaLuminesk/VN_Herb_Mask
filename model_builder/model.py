@@ -1,10 +1,9 @@
 import torch.nn as nn
 from torchvision.models import resnet18, ResNet18_Weights
 
-
-from model_builder.resnet_BAM import Resnet18_BAM
-from model_builder.resnet_BCAM import Resnet18_BCBAM  
-from model_builder.resnet_CBAM import Resnet18_CBAM       
+from custom_resnet.resnet_BAM import Resnet18_BAM
+from custom_resnet.resnet_BCAM import Resnet18_BCBAM  
+from custom_resnet.resnet_CBAM import Resnet18_CBAM       
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type):
