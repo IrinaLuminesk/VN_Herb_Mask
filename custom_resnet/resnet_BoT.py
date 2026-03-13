@@ -17,7 +17,7 @@ class Resnet50_BoT(nn.Module):
                  num_classes=self.num_classes, 
                  attention=[False,False,False,True], 
                  num_heads=4, 
-                 image_size=[256, 256])
+                 image_size=256)
 
 
             self.model_input = nn.Sequential(
