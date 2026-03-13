@@ -25,8 +25,9 @@ class Resnet50_Swin(nn.Module):
             self.layer3 = backbone_model.layer3
             self.layer4 = backbone_model.layer4
             
-            self.res_proj = nn.Linear(2048, 1024)
+            self.res_proj = nn.Conv2d(2048, 1024, kernel_size=1)
             self.swin_proj = nn.Identity()
+            self.swin_norm = nn.LayerNorm(1024)
 
             swin_backbone = timm.create_model(
                  "swin_base_patch4_window7_224",
@@ -59,10 +60,12 @@ class Resnet50_Swin(nn.Module):
         resnet_branch = self.res_proj(resnet_branch)
         #Branch 2
         swin_branch = shared.permute(0,2,3,1)  # BCHW -> BHWC
+        swin_branch = self.swin_norm(swin_branch)
         swin_branch = self.swin_stage3(swin_branch)
-        swin_branch = self.swin_stage3(swin_branch)
+        swin_branch = self.swin_stage4(swin_branch)
         swin_branch = swin_branch.permute(0,3,1,2) #BHWC -> BCHW
         swin_branch = self.swin_proj(swin_branch)
+        
         x = torch.cat([resnet_branch, swin_branch], dim=1) 
 
         x = self.avgpool(x)
