@@ -3,6 +3,8 @@ from torchvision.models import resnet50, ResNet50_Weights, resnet18, ResNet18_We
 import torch
 import torch.nn.functional as F
 
+from attention_module.attention import BidirectionalAttentionModule
+
 class CNNtoSwinAdapter(nn.Module):
     def forward(self, x):
         x = F.avg_pool2d(x, 2)
@@ -41,6 +43,9 @@ class Resnet50_Swin(nn.Module):
             self.swin_proj = nn.Conv2d(1024, 2048, 1)
             
             self.fusion = nn.Conv2d(4096, 2048, kernel_size=1)
+
+            self.BAM = BidirectionalAttentionModule(channels=2048)
+
             self.avgpool = backbone_model.avgpool
             self.fc = nn.Sequential(
                     nn.Linear(2048, 1024),
@@ -69,6 +74,7 @@ class Resnet50_Swin(nn.Module):
         swin_branch = self.swin_proj(swin_branch)
         x = torch.cat([resnet_branch, swin_branch], dim=1) 
         x = self.fusion(x)
+        x = self.BAM(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
