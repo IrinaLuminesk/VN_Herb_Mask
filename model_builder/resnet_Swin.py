@@ -56,7 +56,12 @@ class Resnet50_Swin(nn.Module):
                 )
 
             print("Training on Resnet50 Swin architecture")
+    def augment_feature(self, x):
+        if self.training: #Biến này kế thừa
+            noise = 0.01 * torch.randn_like(x)
+            return x + noise
 
+        return x
     def forward(self, x):
         x = self.model_input(x)
         x = self.layer1(x)
@@ -74,7 +79,8 @@ class Resnet50_Swin(nn.Module):
         swin_branch = self.swin_proj(swin_branch)
         x = torch.cat([resnet_branch, swin_branch], dim=1) 
         x = self.fusion(x)
-        x = self.BAM(x)
+        x_aug = self.augment_feature(x)
+        x = self.BAM(x, x_aug)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
