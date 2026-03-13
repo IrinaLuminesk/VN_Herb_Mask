@@ -39,6 +39,8 @@ class Resnet50_Swin(nn.Module):
 
             self.adapt_cnn_2_Swin = CNNtoSwinAdapter() #Dùng để đổi [B, 16, 16, 1024] sang [B, 1024, 8, 8]
             self.swin_proj = nn.Conv2d(1024, 2048, 1)
+            
+            self.fusion = nn.Conv2d(4096, 2048, kernel_size=1)
             self.avgpool = backbone_model.avgpool
             self.fc = nn.Sequential(
                     nn.Linear(2048, 1024),
@@ -66,7 +68,7 @@ class Resnet50_Swin(nn.Module):
         swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous()
         swin_branch = self.swin_proj(swin_branch)
         x = torch.cat([resnet_branch, swin_branch], dim=1) 
-
+        x = self.fusion(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
