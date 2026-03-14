@@ -45,6 +45,7 @@ class Model(nn.Module):
             case 1: 
                 self.model.layer4.feature_maps = None
                 hook_handle = self.model.layer4.register_forward_hook(hook_fn)
+                return hook_handle
             case 2: 
                 self.model.BAM_layer2.feature_maps = None
                 hook_handle = self.model.BAM_layer2.register_forward_hook(hook_fn)
