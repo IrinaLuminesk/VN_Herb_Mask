@@ -63,8 +63,8 @@ class Model(nn.Module):
                 hook_handle = self.model.BCBAM_layer2.register_forward_hook(hook_fn)
                 return hook_handle
             case 5:
-                self.model.BAM.feature_maps = None
-                hook_handle = self.model.BAM.register_forward_hook(hook_fn)
+                self.model.fusion.feature_maps = None
+                hook_handle = self.model.fusion.register_forward_hook(hook_fn)
                 return hook_handle
     def get_feature_maps(self):
         match self.model_type:
@@ -77,7 +77,7 @@ class Model(nn.Module):
             case 4:
                 return self.model.BCBAM_layer2.feature_maps
             case 5:
-                return self.model.BAM.feature_maps
+                return self.model.fusion.feature_maps
     def forward(self, x):
         return self.model(x)
     
