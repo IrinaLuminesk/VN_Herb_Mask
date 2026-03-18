@@ -181,7 +181,7 @@ class MetricCalV2():
 
         denom = torch.sqrt(cov_ytyt * cov_ypyp).clamp_min(eps)
 
-        return cov_ytyp / denom
+        return (cov_ytyp / denom).item()
 
     # Fowlkes–Mallows Index
     @property
@@ -196,7 +196,7 @@ class MetricCalV2():
 
         fmi_per_class = tp / denom
 
-        return fmi_per_class.mean()
+        return fmi_per_class.mean().item()
 
     @property
     def cohen_kappa(self):
@@ -212,4 +212,4 @@ class MetricCalV2():
 
         pe = torch.dot(true_sum, pred_sum) / ((n * n) + eps)
 
-        return (po - pe) / (1 - pe + eps)
+        return ((po - pe) / (1 - pe + eps)).item()

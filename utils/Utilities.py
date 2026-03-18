@@ -158,9 +158,9 @@ def Saving_Metric2(epoch,
         'val_precision': val_precision,
         'val_recall': val_recall,
         'val_f1': val_f1,
-        'train_MCC': val_MCC,
-        'train_FMI': val_FMI,
-        'train_Cohen_Kappa': val_Cohen_Kappa,
+        'val_MCC': val_MCC,
+        'val_FMI': val_FMI,
+        'val_Cohen_Kappa': val_Cohen_Kappa,
     }
     metrics_df = pd.concat([metrics_df, pd.DataFrame([new_row])], ignore_index=True)
     metrics_df.to_csv(path, index=False)
