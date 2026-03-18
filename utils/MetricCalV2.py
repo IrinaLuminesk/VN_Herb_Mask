@@ -14,6 +14,11 @@ class MetricCalV2():
         self.total = torch.zeros(1, device=self.device)
         self.total_bce_dice = torch.zeros(1, device=self.device)
 
+        self.cm = torch.zeros(
+            (self.num_classes, self.num_classes),
+            dtype=torch.int64,
+            device=self.device
+        )
         self.tp_per_class = torch.zeros(self.num_classes, device=self.device)
         self.fp_per_class = torch.zeros(self.num_classes, device=self.device)
         self.fn_per_class = torch.zeros(self.num_classes, device=self.device)
@@ -22,6 +27,7 @@ class MetricCalV2():
     def update_test(self, loss, outputs, targets, type="soft"):
         #Dùng để tính classification loss
         batch_size = targets.size(0)
+        
         self.total_cls_loss += loss.detach() * batch_size
         self.total += batch_size
 
@@ -45,6 +51,8 @@ class MetricCalV2():
             minlength=self.num_classes ** 2
         ).reshape(self.num_classes, self.num_classes)
         
+        self.cm += cm
+
         self.tp_per_class += cm.diag()
         self.fp_per_class += cm.sum(dim=0) - cm.diag()
         self.fn_per_class += cm.sum(dim=1) - cm.diag()
@@ -62,7 +70,7 @@ class MetricCalV2():
         valid_count = has_masks.sum()
         self.total_bce_loss  += bce_loss.detach() * valid_count
         self.total_dice_loss += dice_loss.detach() * valid_count
-        self.total_bce_dice += valid_count.item()
+        self.total_bce_dice += valid_count
 
         # self.total_overall_loss += overall_loss.item()
 
@@ -86,6 +94,8 @@ class MetricCalV2():
             minlength=self.num_classes ** 2
         ).reshape(self.num_classes, self.num_classes)
         
+        self.cm += cm
+
         self.tp_per_class += cm.diag()
         self.fp_per_class += cm.sum(dim=0) - cm.diag()
         self.fn_per_class += cm.sum(dim=1) - cm.diag()
@@ -151,3 +161,55 @@ class MetricCalV2():
     @property
     def f1_macro(self):
         return self.f1_score.mean().item()
+    
+    # Matthews Correlation Coefficient(MCC)
+    @property
+    def MCC(self):
+        eps = 1e-12
+        cm = self.cm.detach().float()
+
+        t_sum = cm.sum(dim=1)      # true counts per class
+        p_sum = cm.sum(dim=0)      # predicted counts per class
+
+        n_correct = torch.trace(cm)
+        n_samples = cm.sum()
+
+        cov_ytyp = n_correct * n_samples - torch.dot(t_sum, p_sum)
+
+        cov_ypyp = n_samples**2 - torch.dot(p_sum, p_sum)
+        cov_ytyt = n_samples**2 - torch.dot(t_sum, t_sum)
+
+        denom = torch.sqrt(cov_ytyt * cov_ypyp).clamp_min(eps)
+
+        return cov_ytyp / denom
+
+    # Fowlkes–Mallows Index
+    @property
+    def FMI(self):
+        eps = 1e-12
+
+        tp = self.tp_per_class.detach().float()
+        fp = self.fp_per_class.detach().float()
+        fn = self.fn_per_class.detach().float()
+
+        denom = torch.sqrt((tp + fp) * (tp + fn)).clamp_min(eps)
+
+        fmi_per_class = tp / denom
+
+        return fmi_per_class.mean()
+
+    @property
+    def cohen_kappa(self):
+        eps = 1e-12
+        cm = self.cm.float()
+
+        n = cm.sum()
+
+        po = torch.trace(cm) / (n + eps)
+
+        true_sum = cm.sum(dim=1)
+        pred_sum = cm.sum(dim=0)
+
+        pe = torch.dot(true_sum, pred_sum) / ((n * n) + eps)
+
+        return (po - pe) / (1 - pe + eps)
