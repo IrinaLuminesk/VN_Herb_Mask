@@ -6,6 +6,8 @@ from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 from segmentation_models_pytorch.losses import DiceLoss
 
+import math
+
 class SaliencyGuidedLoss(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0):
         super(SaliencyGuidedLoss, self).__init__()
@@ -15,6 +17,7 @@ class SaliencyGuidedLoss(nn.Module):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
+        self.rampup_length = 30
         self.classification_loss = self.loss_builder()
         self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.dice_loss = DiceLoss(
@@ -29,6 +32,18 @@ class SaliencyGuidedLoss(nn.Module):
                 return SoftTargetCrossEntropy()
         return nn.CrossEntropyLoss()
 
+    def sigmoid_rampup(self, current_epoch):
+        """ Exponential / sigmoid ramp-up from 0 to 1 """
+        if self.rampup_length == 0:
+            return 1.0
+        else:
+            current = float(current_epoch)
+            if current >= self.rampup_length:
+                return 1.0
+            else:
+                phase = 1.0 - current / self.rampup_length
+                return math.exp(-5.0 * phase * phase)
+    
     def create_attention_map(self, feature_maps, binary_masks):
         # Attention map
         attention_map = torch.mean(feature_maps, dim=1, keepdim=True)
@@ -73,7 +88,7 @@ class SaliencyGuidedLoss(nn.Module):
             dice_loss = torch.zeros((), device='cuda' if torch.cuda.is_available() else 'cpu') #Yêu cầu mô hình cư xử bình thường
         return dice_loss
 
-    def forward(self, pred, target, feature_maps, binary_masks, has_masks):
+    def forward(self, pred, target, feature_maps, binary_masks, has_masks, epoch):
         # 1. Standard Classification Loss
         cls_loss = self.classification_loss(pred, target)
 
@@ -86,7 +101,11 @@ class SaliencyGuidedLoss(nn.Module):
         #3. Dùng Dice để khuyến khích mô hình học các feature tổng quan thay vì chỉ tập chung vào một chỗ
         dice_loss = self.compute_dice_loss(attention_map, binary_masks, has_masks)
 
-        total_loss = self.alpha * cls_loss + self.beta * bce_align_loss + self.gamma * dice_loss
+        rampup = self.sigmoid_rampup(epoch)
+        beta = self.beta * rampup
+        gamma = self.gamma * rampup
+
+        total_loss = self.alpha * cls_loss + beta * bce_align_loss + gamma * dice_loss
 
         return total_loss, cls_loss, bce_align_loss, dice_loss
     

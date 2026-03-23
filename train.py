@@ -71,7 +71,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         outputs = model(inputs)
         # feature_maps = features[0]
         feature_maps = model.get_feature_maps()
-        total_loss, cls_loss, bce_align_loss, dice_loss = criterion(outputs, targets, feature_maps, masks, has_masks) #SaliencyGuideLoss trả về 4 tham số
+        total_loss, cls_loss, bce_align_loss, dice_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
         total_loss.backward()
         optimizer.step()
 
