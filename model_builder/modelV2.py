@@ -4,7 +4,7 @@ from torchvision.models import resnet50, ResNet50_Weights
 from model_builder.resnet_BAM import Resnet50_BAM
 from model_builder.resnet_BCAM import Resnet50_BCBAM  
 from model_builder.resnet_CBAM import Resnet50_CBAM
-from model_builder.resnet_Swin import Resnet50_Swin       
+from model_builder.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM       
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type):
@@ -42,7 +42,11 @@ class Model(nn.Module):
                 return model
             case 5: #Resnet50 Swin
                 model = Resnet50_Swin(num_classes=self.num_classes)
-                print("Training on Resnet50 with Swin")
+                print("Training on Resnet50 and Swin")
+                return model
+            case 6: #Resnet50 Swin with BAM
+                model = Resnet50_Swin_BAM(num_classes=self.num_classes)
+                print("Training on Resnet50 and Swin with BAM")
                 return model
     def register_hook(self, hook_fn):
         match self.model_type:
@@ -66,6 +70,10 @@ class Model(nn.Module):
                 self.model.fusion.feature_maps = None
                 hook_handle = self.model.fusion.register_forward_hook(hook_fn)
                 return hook_handle
+            case 6:
+                self.model.fusion.feature_maps = None
+                hook_handle = self.model.fusion.register_forward_hook(hook_fn)
+                return hook_handle
     def get_feature_maps(self):
         match self.model_type:
             case 1:
@@ -77,6 +85,8 @@ class Model(nn.Module):
             case 4:
                 return self.model.BCBAM_layer2.feature_maps
             case 5:
+                return self.model.fusion.feature_maps
+            case 6:
                 return self.model.fusion.feature_maps
     def forward(self, x):
         return self.model(x)

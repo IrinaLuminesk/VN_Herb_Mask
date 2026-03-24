@@ -36,8 +36,6 @@ class Resnet50_CBAM(nn.Module):
                     nn.Linear(1024, self.num_classes),
                 )
 
-            print("Training on Resnet50 BAM architecture")
-
     def forward(self, x):
         x = self.model_input(x)
         x = self.layer1(x)
@@ -85,8 +83,6 @@ class Resnet18_CBAM(nn.Module):
                     nn.Dropout(0.4),
                     nn.Linear(512, self.num_classes),
                 )
-
-            print("Training on Resnet50 BAM architecture")
 
     def forward(self, x):
         x = self.model_input(x)

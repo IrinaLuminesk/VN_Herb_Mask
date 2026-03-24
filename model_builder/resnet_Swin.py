@@ -31,7 +31,7 @@ class FusionBlock(nn.Module):
 
         return torch.cat([A, B], dim=1)  # 3072 channels
 
-class Resnet50_Swin(nn.Module):
+class Resnet50_Swin_BAM(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
@@ -78,7 +78,6 @@ class Resnet50_Swin(nn.Module):
                  nn.Linear(1024, self.num_classes),
             )
 
-            print("Training on Resnet50 Swin architecture")
     def augment_feature(self, x):
         if self.training: #Biến này kế thừa
             noise = 0.01 * torch.randn_like(x)
@@ -114,14 +113,17 @@ class Resnet50_Swin(nn.Module):
         x = self.fc(x)
         return x
     
-class Resnet18_CBAM(nn.Module):
+class Resnet50_Swin(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
         self.build_layers()
     def build_layers(self):
-            resnet_weights = ResNet18_Weights.DEFAULT
-            backbone_model = resnet18(weights=resnet_weights)
+            resnet_weights = ResNet50_Weights.DEFAULT
+            backbone_model = resnet50(weights=resnet_weights)
+
+            swin_weights = Swin_V2_B_Weights.DEFAULT
+            swin_model = swin_v2_b(weights=swin_weights)
 
             self.model_input = nn.Sequential(
                 backbone_model.conv1,
@@ -129,37 +131,55 @@ class Resnet18_CBAM(nn.Module):
                 backbone_model.relu,
                 backbone_model.maxpool,
             )
-
+            #Resnet 50
             self.layer1 = backbone_model.layer1
             self.layer2 = backbone_model.layer2
             self.layer3 = backbone_model.layer3
-            self.CBAM_layer1 = CBAM(256)
-            self.layer4 = backbone_model.layer4
-            self.CBAM_layer2 = CBAM(512)
 
+
+            self.layer4 = backbone_model.layer4
+
+            #Swin
+            self.swin_layer = swin_model.features[7]
+            self.adapt_cnn_2_Swin = CNNtoSwinAdapter() #Dùng để đổi [B, 16, 16, 1024] sang [B, 1024, 8, 8]
+
+
+            #Fusion
+            self.fusion = FusionBlock()
             self.avgpool = backbone_model.avgpool
             self.fc = nn.Sequential(
-                    nn.Linear(512, 512),
-                    nn.BatchNorm1d(512),
-                    nn.ReLU(),
-                    nn.Dropout(0.4),
-                    nn.Linear(512, self.num_classes),
-                )
+                 nn.Linear(3072, 1024),
+                 nn.BatchNorm1d(1024),
+                 nn.SiLU(),
+                 nn.Dropout(0.4),
+                 nn.Linear(1024, self.num_classes),
+            )
 
-            print("Training on Resnet50 BAM architecture")
+    def augment_feature(self, x):
+        if self.training: #Biến này kế thừa
+            noise = 0.01 * torch.randn_like(x)
+            return x + noise
 
+        return x
     def forward(self, x):
         x = self.model_input(x)
         x = self.layer1(x)
         x= self.layer2(x)
-        x = self.layer3(x)
-        x = self.CBAM_layer1(x)
+        #Layer này chia nhánh ra 2 nhánh, nhánh 1 vào layer4 gốc của Resnet và nhánh 2 vào stage 3 và 4 của Swin
+        shared = self.layer3(x) #(1024, 16, 16)
 
-        x = self.layer4(x)
+        #Branch A
+        resnet_branch = self.layer4(shared) #(2048, 8, 8)
+        
 
-        x = self.CBAM_layer2(x)
+        #Branch 2
+        swin_branch = self.adapt_cnn_2_Swin(shared)  # BCHW -> BHWC
+        swin_branch = self.swin_layer(swin_branch) #Output [B, 8, 8, 1024]
+        swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous() #Output [B, 1024, 8, 8]
+        
 
-        x = self.avgpool(x)
+        Fused = self.fusion(resnet_branch, swin_branch)
+        x = self.avgpool(Fused)
         x = torch.flatten(x, 1)
         x = self.fc(x)
         return x
