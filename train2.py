@@ -14,7 +14,6 @@ from model_builder.modelV2 import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric2, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
-from loss_helper.SaliencyGuidedLoss import SaliencyGuidedLoss
 
 import torch
 import torch.nn as nn
@@ -45,15 +44,7 @@ def set_seed(seed=42):
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-features = []
-def hook_fn(module, input, output):
-    # features.append(output)
-    module.feature_maps = output
 
-# feature_maps = None
-# def hook_fn(module, input, output):
-#     nonlocal feature_maps
-#     feature_maps = output
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
@@ -67,21 +58,14 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
             inputs, masks, targets, has_masks = batchWiseAug(inputs, masks, targets)
         has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
-        # features.clear()
         outputs = model(inputs)
-        # feature_maps = features[0]
-        feature_maps = model.get_feature_maps()
-        total_loss, cls_loss, bce_align_loss, dice_loss, tv_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
-        total_loss.backward()
+        loss = criterion(outputs, targets)
+        loss.backward()
         optimizer.step()
 
-        metrics.update_train(cls_loss=cls_loss,
-                             bce_loss=bce_align_loss,
-                             dice_loss=dice_loss,
-                             tv_loss=tv_loss,
-                             has_masks=has_masks, 
-                             outputs=outputs, 
-                             targets=targets, 
+        metrics.update_test(loss=loss,
+                            outputs=outputs,
+                            targets= targets,
                              type="soft" if batchWiseAug != None else "hard")
     return metrics
 
@@ -173,20 +157,11 @@ def main():
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
     model = Model(len(CLASSES), model_type).to(device)
-    # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
-    # model.model.layer4.feature_maps = None
-    # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
-    hook_handle = model.register_hook(hook_fn)
 
     eval_criterion = nn.CrossEntropyLoss()
-    # train_criterion = nn.CrossEntropyLoss()
-    # if enabled_batchwise_transform:
-    #     train_criterion = SoftTargetCrossEntropy()
-    train_criterion = SaliencyGuidedLoss(type="train", 
-                                         enabled_batchwise_transform=enabled_batchwise_transform, 
-                                         alpha=1,
-                                         beta=0.1,
-                                         gamma=0.03)
+    train_criterion = nn.CrossEntropyLoss()
+    if enabled_batchwise_transform:
+        train_criterion = SoftTargetCrossEntropy()
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     if model_type not in [8, 9]:
@@ -233,9 +208,7 @@ def main():
         train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.05,gamma=0.01), train_metrics.avg_accuracy
         scheduler.step()
         print()
-        hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
         val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
-        hook_handle = model.register_hook(hook_fn)
         val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy
         print()
 
@@ -266,10 +239,10 @@ def main():
         if save_metrics:
             Saving_Metric2(epoch=epoch, 
                            train_cls_loss=train_metrics.avg_cls_loss,
-                           train_bce_loss=train_metrics.avg_bce_loss,
-                           train_dice_loss=train_metrics.avg_dice_loss,
-                           train_tv_loss=train_metrics.avg_tv_loss,
-                           train_overall_loss=train_loss,
+                           train_bce_loss=0,
+                           train_dice_loss=0,
+                           train_tv_loss=0,
+                           train_overall_loss=0,
                            train_acc=train_acc,
                            train_precision=train_metrics.precision_macro,
                            train_recall=train_metrics.recall_macro,
@@ -290,7 +263,6 @@ def main():
             print("Early stopping triggered at epoch {0}".format(epoch))
             break
         print()
-    hook_handle.remove()
 
     
 if __name__ == '__main__':

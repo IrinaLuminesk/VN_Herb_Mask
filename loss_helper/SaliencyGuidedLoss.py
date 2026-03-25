@@ -17,7 +17,12 @@ class SaliencyGuidedLoss(nn.Module):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
-        self.rampup_length = 30
+        # in_channels sẽ được hàm tự bỏ vào sau
+        self.attention_head = nn.LazyConv2d(
+            out_channels=1,
+            kernel_size=1,
+            bias=False
+        )
         self.classification_loss = self.loss_builder()
         self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.dice_loss = DiceLoss(
@@ -32,21 +37,24 @@ class SaliencyGuidedLoss(nn.Module):
                 return SoftTargetCrossEntropy()
         return nn.CrossEntropyLoss()
 
-    def sigmoid_rampup(self, current_epoch):
-        """ Exponential / sigmoid ramp-up from 0 to 1 """
-        if self.rampup_length == 0:
-            return 1.0
-        else:
-            current = float(current_epoch)
-            if current >= self.rampup_length:
-                return 1.0
-            else:
-                phase = 1.0 - current / self.rampup_length
-                return math.exp(-5.0 * phase * phase)
+    # def sigmoid_rampup(self, current_epoch):
+    #     """ Exponential / sigmoid ramp-up from 0 to 1 """
+    #     if self.rampup_length == 0:
+    #         return 1.0
+    #     else:
+    #         current = float(current_epoch)
+    #         if current >= self.rampup_length:
+    #             return 1.0
+    #         else:
+    #             phase = 1.0 - current / self.rampup_length
+    #             return math.exp(-5.0 * phase * phase)
     
     def create_attention_map(self, feature_maps, binary_masks):
         # Attention map
-        attention_map = torch.mean(feature_maps, dim=1, keepdim=True)
+        # attention_map = torch.mean(feature_maps, dim=1, keepdim=True)
+
+        attention_map = self.attention_head(feature_maps)
+
         attention_map = F.interpolate(
             attention_map, 
             size=binary_masks.shape[2:], 
@@ -59,6 +67,32 @@ class SaliencyGuidedLoss(nn.Module):
             attention_map.std(dim=(2, 3), keepdim=True) + 1e-6
         )
         return attention_map
+    
+    def compute_tv_loss(self, attention_map, has_masks):
+        """
+        attention_map: [B, 1, H, W] (LOGITS)
+        has_masks:     [B] boolean tensor
+        """
+        if has_masks.any():
+            valid_idx = has_masks.nonzero(as_tuple=True)[0]
+            attn = attention_map[valid_idx]  # only supervised samples
+
+            # vertical differences
+            diff_h = torch.abs(attn[:, :, 1:, :] - attn[:, :, :-1, :])
+
+            # horizontal differences
+            diff_w = torch.abs(attn[:, :, :, 1:] - attn[:, :, :, :-1])
+
+            tv_loss = diff_h.mean() + diff_w.mean()
+
+        else:
+            tv_loss = torch.zeros(
+                (),
+                device=attention_map.device
+            )
+
+        return tv_loss
+
     def BCE_loss(self, attention_map, binary_masks, has_masks):
 
         # ---- 4. Alignment loss (only if masks exist) ----
@@ -101,11 +135,10 @@ class SaliencyGuidedLoss(nn.Module):
         #3. Dùng Dice để khuyến khích mô hình học các feature tổng quan thay vì chỉ tập chung vào một chỗ
         dice_loss = self.compute_dice_loss(attention_map, binary_masks, has_masks)
 
-        rampup = self.sigmoid_rampup(epoch)
-        beta = self.beta * rampup
-        gamma = self.gamma * rampup
+        #4 Total variation loss
+        tv_loss = self.compute_tv_loss(attention_map, has_masks)
 
-        total_loss = self.alpha * cls_loss + beta * bce_align_loss + gamma * dice_loss
+        total_loss = self.alpha * cls_loss + self.beta * bce_align_loss + self.gamma * dice_loss + 0.05 * tv_loss 
 
-        return total_loss, cls_loss, bce_align_loss, dice_loss
+        return total_loss, cls_loss, bce_align_loss, dice_loss, tv_loss
     

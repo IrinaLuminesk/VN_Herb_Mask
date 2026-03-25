@@ -8,6 +8,7 @@ class MetricCalV2():
         self.total_cls_loss = torch.zeros(1, device=self.device)
         self.total_bce_loss = torch.zeros(1, device=self.device)
         self.total_dice_loss = torch.zeros(1, device=self.device)
+        self.total_tv_loss = torch.zeros(1, device=self.device)
         self.total_overall_loss = torch.zeros(1, device=self.device)
         
         self.correct = torch.zeros(1, device=self.device)
@@ -58,7 +59,7 @@ class MetricCalV2():
         self.fn_per_class += cm.sum(dim=1) - cm.diag()
 
     @torch.no_grad()
-    def update_train(self, cls_loss, bce_loss, dice_loss, outputs, targets, has_masks, type="soft"):
+    def update_train(self, cls_loss, bce_loss, dice_loss, tv_loss, outputs, targets, has_masks, type="soft"):
         #Dùng để tính classification loss
         batch_size = targets.size(0)
 
@@ -70,6 +71,7 @@ class MetricCalV2():
         valid_count = has_masks.sum()
         self.total_bce_loss  += bce_loss.detach() * valid_count
         self.total_dice_loss += dice_loss.detach() * valid_count
+        self.total_tv_loss += tv_loss.detach() * valid_count
         self.total_bce_dice += valid_count
 
         # self.total_overall_loss += overall_loss.item()
@@ -112,6 +114,9 @@ class MetricCalV2():
         return (self.total_bce_loss / self.total_bce_dice).item() if self.total_bce_dice > 0 else 0.0
 
     @property
+    def avg_tv_loss(self):
+        return (self.total_tv_loss / self.total_bce_dice).item() if self.total_bce_dice > 0 else 0.0
+    @property
     def avg_dice_loss(self):
         return (self.total_dice_loss / self.total_bce_dice).item() if self.total_bce_dice > 0 else 0.0
 
@@ -120,6 +125,7 @@ class MetricCalV2():
             alpha * self.avg_cls_loss
             + beta * self.avg_bce_loss
             + gamma * self.avg_dice_loss
+            + 0.05 * self.avg_tv_loss
         )
 
     @property
