@@ -22,7 +22,7 @@ class SaliencyGuidedLoss(nn.Module):
             out_channels=1,
             kernel_size=1,
             bias=False
-        )
+        ).to("cuda")
         self.classification_loss = self.loss_builder()
         self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.dice_loss = DiceLoss(
@@ -54,7 +54,6 @@ class SaliencyGuidedLoss(nn.Module):
         # attention_map = torch.mean(feature_maps, dim=1, keepdim=True)
 
         attention_map = self.attention_head(feature_maps)
-
         attention_map = F.interpolate(
             attention_map, 
             size=binary_masks.shape[2:], 
