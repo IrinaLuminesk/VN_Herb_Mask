@@ -112,7 +112,7 @@ def main():
         img_size = [224, 224]
 
     #Learning_rate
-    if model_type not in [8, 9]:
+    if model_type not in [0]:
         Learning_rate_para = config["TRAIN"]["LEARNING_RATE"]["PieceWise"]
     else:
         Learning_rate_para = config["TRAIN"]["LEARNING_RATE"]["WarmupCosine"]
@@ -164,7 +164,7 @@ def main():
         train_criterion = SoftTargetCrossEntropy()
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
-    if model_type not in [8, 9]:
+    if model_type not in [0]:
         lr_schedule = PiecewiseScheduler(
             start_lr=Learning_rate_para["START_LR"],
             max_lr=Learning_rate_para["MAX_LR"],
