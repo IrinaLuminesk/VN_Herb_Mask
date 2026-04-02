@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights, swin_v2_b, Swin_V2_B_Weights
+from torchvision.models import resnet50, ResNet50_Weights, swin_v2_t, Swin_V2_T_Weights
 
 from model_builder.resnet_BAM import Resnet50_BAM
 from model_builder.resnet_BCAM import Resnet50_BCBAM  
@@ -16,17 +16,17 @@ class Model(nn.Module):
     def build_model(self):
         match self.model_type:
             case 0: #Swin
-                swinv2Weight = Swin_V2_B_Weights.DEFAULT
-                model = swin_v2_b(weights=swinv2Weight)
+                swinv2Weight = Swin_V2_T_Weights.DEFAULT
+                model = swin_v2_t(weights=swinv2Weight)
 
-                in_features = model.head.in_features #1024
+                in_features = model.head.in_features #768
                 # model.head = nn.Linear(in_features, self.num_classes, bias=True)
                 model.head = nn.Sequential(
                     nn.LayerNorm(in_features),
-                    nn.Linear(in_features, 1024),
+                    nn.Linear(in_features, 768),
                     nn.GELU(),
                     nn.Dropout(0.1),
-                    nn.Linear(1024, self.num_classes)
+                    nn.Linear(768, self.num_classes)
                 )
                 print("Training on Swin architecture")
                 return model

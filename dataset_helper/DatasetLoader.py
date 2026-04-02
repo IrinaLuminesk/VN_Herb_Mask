@@ -51,7 +51,7 @@ class ImageMaskFolder(Dataset):
     def Get_Imgs_Masks_sample(self):
         samples = []
         imgs = [(img, img.stem) for img in self.img_root.rglob("*") if img.is_file()] #(Đường dẫn, Guid)
-        masks = [(mask, mask.stem) for mask in self.mask_root.rglob("*") if mask.is_file] #(Đường dẫn, Guid)
+        masks = [(mask, mask.stem) for mask in self.mask_root.rglob("*") if mask.is_file()] #(Đường dẫn, Guid)
         print("Found {0} images, {1} masks belong to {2} classes".format(len(imgs),
                                                                         len(masks),
                                                                         len(self.class_to_idx)))

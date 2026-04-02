@@ -124,8 +124,8 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
-    if model_type == 8:
-        img_size = [224, 224]
+    # if model_type == 8:
+    #     img_size = [224, 224]
 
     #Learning_rate
     if model_type not in [8, 9]:
@@ -189,26 +189,26 @@ def main():
                                          gamma=0.03)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
-    if model_type not in [8, 9]:
-        lr_schedule = PiecewiseScheduler(
-            start_lr=Learning_rate_para["START_LR"],
-            max_lr=Learning_rate_para["MAX_LR"],
-            min_lr=Learning_rate_para["MIN_LR"],
-            rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
-            sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
-            exp_decay=Learning_rate_para["EXP_DECAY"]
-        )
-        print("Training using PiecewiseScheduler")
-    else:
-        lr_schedule = WarmupCosineScheduler(
-            start_lr=Learning_rate_para["START_LR"],
-            max_lr=Learning_rate_para["MAX_LR"],
-            min_lr=Learning_rate_para["MIN_LR"],
-            rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
-            sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
-            total_epochs=end_epoch
-        )
-        print("Training using WarmupCosineScheduler")
+    # if model_type not in [8, 9]:
+    lr_schedule = PiecewiseScheduler(
+        start_lr=Learning_rate_para["START_LR"],
+        max_lr=Learning_rate_para["MAX_LR"],
+        min_lr=Learning_rate_para["MIN_LR"],
+        rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
+        sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
+        exp_decay=Learning_rate_para["EXP_DECAY"]
+    )
+    print("Training using PiecewiseScheduler")
+    # else:
+    #     lr_schedule = WarmupCosineScheduler(
+    #         start_lr=Learning_rate_para["START_LR"],
+    #         max_lr=Learning_rate_para["MAX_LR"],
+    #         min_lr=Learning_rate_para["MIN_LR"],
+    #         rampup_epochs=Learning_rate_para["RAMPUP_EPOCHS"],
+    #         sustain_epochs=Learning_rate_para["SUSTAIN_EPOCHS"],
+    #         total_epochs=end_epoch
+    #     )
+    #     print("Training using WarmupCosineScheduler")
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
     best_acc = 0
 
