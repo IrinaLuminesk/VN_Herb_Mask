@@ -3,7 +3,7 @@ from torchvision.models import resnet50, ResNet50_Weights, resnet18, ResNet18_We
 import torch
 import torch.nn.functional as F
 
-from attention_module.attention import BidirectionalAttentionModule
+from attention_module.attention import CBAM, BidirectionalAttentionModule
 
 class CNNtoSwinAdapter(nn.Module):
     def forward(self, x):
@@ -105,6 +105,85 @@ class Resnet50_Swin_BAM(nn.Module):
         swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous() #Output [B, 1024, 8, 8]
         swin_branch_aug = self.augment_feature(swin_branch)
         swin_branch = self.BAM_layer2_branchB(swin_branch, swin_branch_aug) #Output [B, 1024, 8, 8]
+        
+
+        Fused = self.fusion(resnet_branch, swin_branch)
+        x = self.avgpool(Fused)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x
+
+class Resnet50_Swin_CBAM(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.build_layers()
+    def build_layers(self):
+            resnet_weights = ResNet50_Weights.DEFAULT
+            backbone_model = resnet50(weights=resnet_weights)
+
+            swin_weights = Swin_V2_B_Weights.DEFAULT
+            swin_model = swin_v2_b(weights=swin_weights)
+
+            self.model_input = nn.Sequential(
+                backbone_model.conv1,
+                backbone_model.bn1,
+                backbone_model.relu,
+                backbone_model.maxpool,
+            )
+            #Resnet 50
+            self.layer1 = backbone_model.layer1
+            self.layer2 = backbone_model.layer2
+            self.layer3 = backbone_model.layer3
+
+            #Sau layer 3 có một layer BAM trước khi chia ra 2 nhánh
+            self.CBAM_layer1 = CBAM(1024)
+
+
+            self.layer4 = backbone_model.layer4
+            self.CBAM_layer2_branchA = CBAM(2048)
+
+            #Swin
+            self.swin_layer = swin_model.features[7]
+            self.adapt_cnn_2_Swin = CNNtoSwinAdapter() #Dùng để đổi [B, 16, 16, 1024] sang [B, 1024, 8, 8]
+            self.CBAM_layer2_branchB = CBAM(channels=1024)
+
+
+            #Fusion
+            self.fusion = FusionBlock()
+            self.avgpool = backbone_model.avgpool
+            self.fc = nn.Sequential(
+                 nn.Linear(3072, 1024),
+                 nn.BatchNorm1d(1024),
+                 nn.SiLU(),
+                 nn.Dropout(0.4),
+                 nn.Linear(1024, self.num_classes),
+            )
+
+    def augment_feature(self, x):
+        if self.training: #Biến này kế thừa
+            noise = 0.01 * torch.randn_like(x)
+            return x + noise
+
+        return x
+    def forward(self, x):
+        x = self.model_input(x)
+        x = self.layer1(x)
+        x= self.layer2(x)
+        #Layer này chia nhánh ra 2 nhánh, nhánh 1 vào layer4 gốc của Resnet và nhánh 2 vào stage 3 và 4 của Swin
+        shared = self.layer3(x) #(1024, 16, 16)
+        shared = self.CBAM_layer1(shared)
+
+        #Branch A
+        resnet_branch = self.layer4(shared) #(2048, 8, 8)
+        resnet_branch = self.CBAM_layer2_branchA(resnet_branch) #output (2048, 8, 8)
+
+
+        #Branch 2
+        swin_branch = self.adapt_cnn_2_Swin(shared)  # BCHW -> BHWC
+        swin_branch = self.swin_layer(swin_branch) #Output [B, 8, 8, 1024]
+        swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous() #Output [B, 1024, 8, 8]
+        swin_branch = self.CBAM_layer2_branchB(swin_branch) #Output [B, 1024, 8, 8]
         
 
         Fused = self.fusion(resnet_branch, swin_branch)
