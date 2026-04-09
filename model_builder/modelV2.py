@@ -4,7 +4,7 @@ from torchvision.models import resnet50, ResNet50_Weights, swin_v2_t, Swin_V2_T_
 from model_builder.resnet_BAM import Resnet50_BAM
 from model_builder.resnet_BCAM import Resnet50_BCBAM  
 from model_builder.resnet_CBAM import Resnet50_CBAM
-from model_builder.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM
+from model_builder.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM, Resnet50_Swin_CBAM
 from model_builder.wide_resnet_Swin import Wider_Resnet50_Swin, Wider_Resnet50_Swin_BAM       
 
 class Model(nn.Module):
@@ -64,13 +64,9 @@ class Model(nn.Module):
                 model = Resnet50_Swin_BAM(num_classes=self.num_classes)
                 print("Training on Resnet50 and Swin with BAM")
                 return model
-            case 7: #Wider Resnet Swin
-                model = Wider_Resnet50_Swin(num_classes=self.num_classes)
-                print("Training on Wider Resnet50 and Swin")
-                return model
-            case 8: #Wider Resnet Swin with BAM
-                model = Wider_Resnet50_Swin_BAM(num_classes=self.num_classes)
-                print("Training on Wider Resnet50 and Swin with BAM")
+            case 7: #Wider Resnet Swin with BAM
+                model = Resnet50_Swin_CBAM(num_classes=self.num_classes)
+                print("Training on Wider Resnet50 and Swin with CBAM")
                 return model
     def register_hook(self, hook_fn):
         match self.model_type:
@@ -102,10 +98,6 @@ class Model(nn.Module):
                 self.model.fusion.feature_maps = None
                 hook_handle = self.model.fusion.register_forward_hook(hook_fn)
                 return hook_handle
-            case 7:
-                self.model.fusion.feature_maps = None
-                hook_handle = self.model.fusion.register_forward_hook(hook_fn)
-                return hook_handle
     def get_feature_maps(self):
         match self.model_type:
             case 1:
@@ -121,8 +113,6 @@ class Model(nn.Module):
             case 6:
                 return self.model.fusion.feature_maps
             case 7:
-                return self.model.fusion.feature_maps
-            case 8:
                 return self.model.fusion.feature_maps
     def forward(self, x):
         return self.model(x)
