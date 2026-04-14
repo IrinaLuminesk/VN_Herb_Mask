@@ -7,7 +7,7 @@ from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 from monai.losses.tversky import TverskyLoss
 
-device='cuda' if torch.cuda.is_available() else 'cpu'
+# device='cuda' if torch.cuda.is_available() else 'cpu'
 
 class SaliencyGuidedLoss(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
@@ -31,16 +31,17 @@ class SaliencyGuidedLoss(nn.Module):
             targets,  
             alpha=0.25,
             gamma=2.0,
-            reduction="none"
+            reduction="mean"
         )
         self.tversky_loss = TverskyLoss(
+            to_onehot_y=False,
             include_background=True,
             sigmoid=True,      # applies sigmoid internally
             alpha=0.3,
             beta=0.7,
             smooth_nr=1e-5,
             smooth_dr=1e-5,
-            reduction="none"
+            reduction="mean"
         )
     def loss_builder(self):
         if self.type == "train" and self.enabled_batchwise_transform == True:
@@ -60,31 +61,31 @@ class SaliencyGuidedLoss(nn.Module):
         )
         return attention_map
     def compute_sigmoid_focal_loss(self, attention_map, binary_masks, has_masks):
-        if has_masks.any():
-            
-            sfcl = self.sigmoid_focal_loss(attention_map, binary_masks)  # [B,1,H,W]
-
-            # mask samples without GT masks
-            has_mask = has_masks.view(-1,1,1,1).float()
-            # average per sample over pixels
-            per_sample_loss = (sfcl * has_mask).sum(dim=(1,2,3)) / (has_mask.view(-1) * attention_map.shape[2] * attention_map.shape[3])
-            sigmoid_fc_loss = per_sample_loss.mean()
+        device = attention_map.device
+        valid_idx = has_masks.bool()
+        if valid_idx.any():
+            loss = self.sigmoid_focal_loss(
+                attention_map[valid_idx],
+                binary_masks[valid_idx])
         else:
-            sigmoid_fc_loss = torch.zeros((), device=device) #Yêu cầu mô hình cư xử bình thường
-        return sigmoid_fc_loss
+            loss = torch.zeros((), device=device)
+        return loss
     def log_cosh(self, x):
-        return torch.log(torch.cosh(x + 1e-12))
+        return torch.log(torch.cosh(x).clamp(min=1e-12))
 
     def compute_tversky_loss(self, attention_map, binary_masks, has_masks):
-        if has_masks.any():
-            tversky_loss = self.tversky_loss(attention_map, binary_masks)
-
-            has_mask = has_masks.view(-1,1,1,1).float()
-            per_sample_loss = (tversky_loss * has_mask).sum(dim=(1,2,3)) / (has_mask.view(-1) * attention_map.shape[2] * attention_map.shape[3])
-            tversky_loss_fn = self.log_cosh(per_sample_loss).mean()
+        device = attention_map.device
+        valid_idx = has_masks.bool()
+        
+        if valid_idx.any():
+            loss = self.log_cosh(self.tversky_loss(
+                attention_map[valid_idx],
+                binary_masks[valid_idx].float()
+            ))
         else:
-            tversky_loss_fn = torch.zeros((), device=device)
-        return tversky_loss_fn
+            loss = torch.tensor(0.0, device=attention_map.device)
+        return loss
+
     
     def compute_tv_loss(self, attention_map, has_masks):
         """
