@@ -65,8 +65,10 @@ class SaliencyGuidedLoss(nn.Module):
             sfcl = self.sigmoid_focal_loss(attention_map, binary_masks)  # [B,1,H,W]
 
             # mask samples without GT masks
-            has_mask = has_masks.view(-1, 1, 1, 1).float()
-            sigmoid_fc_loss = (sfcl * has_mask).sum() / has_mask.sum()
+            has_mask = has_masks.view(-1,1,1,1).float()
+            # average per sample over pixels
+            per_sample_loss = (sfcl * has_mask).sum(dim=(1,2,3)) / (has_mask.view(-1) * attention_map.shape[2] * attention_map.shape[3])
+            sigmoid_fc_loss = per_sample_loss.mean()
         else:
             sigmoid_fc_loss = torch.zeros((), device=device) #Yêu cầu mô hình cư xử bình thường
         return sigmoid_fc_loss
@@ -77,9 +79,9 @@ class SaliencyGuidedLoss(nn.Module):
         if has_masks.any():
             tversky_loss = self.tversky_loss(attention_map, binary_masks)
 
-            has_mask = has_masks.view(-1, 1, 1, 1).float()
-            tversky_loss = (tversky_loss * has_mask).sum() / has_mask.sum()
-            tversky_loss_fn = self.log_cosh(tversky_loss)
+            has_mask = has_masks.view(-1,1,1,1).float()
+            per_sample_loss = (tversky_loss * has_mask).sum(dim=(1,2,3)) / (has_mask.view(-1) * attention_map.shape[2] * attention_map.shape[3])
+            tversky_loss_fn = self.log_cosh(per_sample_loss).mean()
         else:
             tversky_loss_fn = torch.zeros((), device=device)
         return tversky_loss_fn
@@ -117,10 +119,10 @@ class SaliencyGuidedLoss(nn.Module):
         #create attention map
         attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
         
-        #2. Dùng để khuyến khích mô hình học các feature nằm trong mask
+    
         sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, has_masks)
 
-        #3. Dùng Dice để khuyến khích mô hình học các feature tổng quan thay vì chỉ tập chung vào một chỗ
+        
         tversky_loss_fn = self.compute_tversky_loss(attention_map, binary_masks, has_masks)
 
         #4 Total variation loss
