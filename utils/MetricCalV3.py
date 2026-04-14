@@ -68,11 +68,14 @@ class MetricCalV3():
         self.total += batch_size
         
         #Dùng để tính bce loss và dice loss
-        valid_count = has_masks.sum()
-        self.total_focal_loss  += focal_loss.detach() * valid_count
-        self.total_tversky_loss += tversky_loss.detach() * valid_count
-        self.total_tv_loss += tv_loss.detach() * valid_count
-        self.total_focal_tversky += valid_count
+        if has_masks.any():
+            valid_count = has_masks.sum()
+
+            # accumulate per-sample averaged losses (no need to multiply by valid_count)
+            self.total_focal_loss  += focal_loss.detach()
+            self.total_tversky_loss += tversky_loss.detach()
+            self.total_tv_loss     += tv_loss.detach()
+            self.total_focal_tversky += 1  # count this batch as one valid batch
 
         # self.total_overall_loss += overall_loss.item()
 
