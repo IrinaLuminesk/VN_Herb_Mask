@@ -65,7 +65,7 @@ class SaliencyGuidedLoss(nn.Module):
             sfcl = self.sigmoid_focal_loss(attention_map, binary_masks)  # [B,1,H,W]
 
             # mask samples without GT masks
-            has_mask = has_masks.view(-1, 1).float()
+            has_mask = has_masks.view(-1, 1, 1, 1).float()
             sigmoid_fc_loss = (sfcl * has_mask).sum() / has_mask.sum()
         else:
             sigmoid_fc_loss = torch.zeros((), device=device) #Yêu cầu mô hình cư xử bình thường
@@ -77,7 +77,7 @@ class SaliencyGuidedLoss(nn.Module):
         if has_masks.any():
             tversky_loss = self.tversky_loss(attention_map, binary_masks)
 
-            has_mask = has_masks.view(-1, 1).float()
+            has_mask = has_masks.view(-1, 1, 1, 1).float()
             tversky_loss = (tversky_loss * has_mask).sum() / has_mask.sum()
             tversky_loss_fn = self.log_cosh(tversky_loss)
         else:
