@@ -8,13 +8,13 @@ from tqdm import tqdm
 #Hàm tự định nghĩa
 from aug_helper.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
-from utils.MetricCalV2 import MetricCalV2
+from utils.MetricCalV3 import MetricCalV3
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 from model_builder.modelV2 import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric2, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
-from loss_helper.SaliencyGuidedLoss import SaliencyGuidedLoss
+from loss_helper.SaliencyGuidedLossV2 import SaliencyGuidedLoss
 
 import torch
 import torch.nn as nn
@@ -57,7 +57,7 @@ def hook_fn(module, input, output):
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
-    metrics = MetricCalV2(num_classes=num_classes, device=device)
+    metrics = MetricCalV3(num_classes=num_classes, device=device)
     for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
@@ -71,13 +71,13 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         outputs = model(inputs)
         # feature_maps = features[0]
         feature_maps = model.get_feature_maps()
-        total_loss, cls_loss, bce_align_loss, dice_loss, tv_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
+        total_loss, cls_loss, focal_loss, tversky_loss, tv_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
         total_loss.backward()
         optimizer.step()
 
         metrics.update_train(cls_loss=cls_loss,
-                             bce_loss=bce_align_loss,
-                             dice_loss=dice_loss,
+                             focal_loss=focal_loss,
+                             tversky_loss=tversky_loss,
                              tv_loss=tv_loss,
                              has_masks=has_masks, 
                              outputs=outputs, 
@@ -87,7 +87,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
-    metrics = MetricCalV2(num_classes=num_classes, device=device)
+    metrics = MetricCalV3(num_classes=num_classes, device=device)
     with torch.no_grad():
         for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
@@ -186,7 +186,8 @@ def main():
                                          enabled_batchwise_transform=enabled_batchwise_transform, 
                                          alpha=1,
                                          beta=0.1,
-                                         gamma=0.03)
+                                         gamma=0.1,
+                                         delta=0.001)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     # if model_type not in [8, 9]:
@@ -230,7 +231,7 @@ def main():
                                 optimizer=optimizer, 
                                 device=device,
                                 num_classes=len(CLASSES))
-        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.05,gamma=0.01), train_metrics.avg_accuracy
+        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.1,gamma=0.1, delta=0.001), train_metrics.avg_accuracy
         scheduler.step()
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
@@ -266,8 +267,8 @@ def main():
         if save_metrics:
             Saving_Metric2(epoch=epoch, 
                            train_cls_loss=train_metrics.avg_cls_loss,
-                           train_bce_loss=train_metrics.avg_bce_loss,
-                           train_dice_loss=train_metrics.avg_dice_loss,
+                           train_focal_loss=train_metrics.avg_focal_loss,
+                           train_tversky_loss=train_metrics.avg_tversky_loss,
                            train_tv_loss=train_metrics.avg_tv_loss,
                            train_overall_loss=train_loss,
                            train_acc=train_acc,
