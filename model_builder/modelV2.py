@@ -7,11 +7,18 @@ from model_builder.resnet_CBAM import Resnet50_CBAM
 from model_builder.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM, Resnet50_Swin_CBAM   
 
 class Model(nn.Module):
-    def __init__(self, num_classes, model_type):
+    def __init__(self, num_classes, model_type, relu_replace=False):
         super().__init__()
         self.num_classes = num_classes
         self.model_type = model_type
+        self.relu_replace = relu_replace
         self.model = self.build_model() 
+    def replace_relu(self, model):
+        for name, child in model.named_children():
+            if isinstance(child, nn.ReLU):
+                setattr(model, name, nn.SiLU(inplace=True))
+            else:
+                self.replace_relu(child)
     def build_model(self):
         match self.model_type:
             case 0: #Swin
@@ -32,11 +39,15 @@ class Model(nn.Module):
             case 1: #Default Resnet50
                 resnet_weights = ResNet50_Weights.DEFAULT
                 model = resnet50(weights=resnet_weights)
+                activation = nn.ReLU()
+                if self.relu_replace:
+                    self.replace_relu(model)
+                    activation = nn.SiLU()
                 in_features = model.fc.in_features #2048
                 fc = nn.Sequential(
                     nn.Linear(in_features, 1024),
                     nn.BatchNorm1d(1024),
-                    nn.ReLU(),
+                    activation,
                     nn.Dropout(0.4),
                     nn.Linear(1024, self.num_classes),
                 )
