@@ -71,7 +71,7 @@ class Model(nn.Module):
                 print("Training on Resnet50 and Swin")
                 return model
             case 6: #Resnet50 Swin with BAM
-                model = Resnet50_Swin_BAM(num_classes=self.num_classes)
+                model = Resnet50_Swin_BAM(num_classes=self.num_classes, relu_replace=self.relu_replace)
                 print("Training on Resnet50 and Swin with BAM")
                 return model
             case 7: #Wider Resnet Swin with BAM

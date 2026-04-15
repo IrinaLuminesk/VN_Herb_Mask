@@ -124,6 +124,7 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
+    relu_replace = config["TRAIN"]["TRAIN_PARA"]["RELU_REPLACE"]
     # if model_type == 8:
     #     img_size = [224, 224]
 
@@ -172,7 +173,7 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
-    model = Model(len(CLASSES), model_type).to(device)
+    model = Model(len(CLASSES), model_type, relu_replace=relu_replace).to(device)
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
     # model.model.layer4.feature_maps = None
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)

@@ -32,13 +32,25 @@ class FusionBlock(nn.Module):
         return torch.cat([A, B], dim=1)  # 3072 channels
 
 class Resnet50_Swin_BAM(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, relu_replace=False):
         super().__init__()
         self.num_classes = num_classes
+        self.relu_replace = relu_replace
         self.build_layers()
+    def replace_relu(self, model):
+        for name, child in model.named_children():
+            if isinstance(child, nn.ReLU):
+                setattr(model, name, nn.SiLU(inplace=True))
+            else:
+                self.replace_relu(child)
     def build_layers(self):
             resnet_weights = ResNet50_Weights.DEFAULT
             backbone_model = resnet50(weights=resnet_weights)
+
+            activation = nn.ReLU()
+            if self.relu_replace:
+                self.replace_relu(backbone_model)
+                activation = nn.SiLU()
 
             swin_weights = Swin_V2_B_Weights.DEFAULT
             swin_model = swin_v2_b(weights=swin_weights)
@@ -73,7 +85,7 @@ class Resnet50_Swin_BAM(nn.Module):
             self.fc = nn.Sequential(
                  nn.Linear(3072, 1024),
                  nn.BatchNorm1d(1024),
-                 nn.SiLU(),
+                 activation,
                  nn.Dropout(0.4),
                  nn.Linear(1024, self.num_classes),
             )
