@@ -60,58 +60,38 @@ class SaliencyGuidedLoss(nn.Module):
             align_corners=False
         )
         return attention_map
-    def compute_sigmoid_focal_loss(self, attention_map, binary_masks, has_masks):
-        device = attention_map.device
-        valid_idx = has_masks.bool()
-        if valid_idx.any():
-            loss = self.sigmoid_focal_loss(
-                attention_map[valid_idx],
-                binary_masks[valid_idx])
-        else:
-            loss = torch.zeros((), device=device)
+    def compute_sigmoid_focal_loss(self, attention_map, binary_masks, valid_idx):
+        loss = self.sigmoid_focal_loss(
+            attention_map[valid_idx],
+            binary_masks[valid_idx])
         return loss
     def log_cosh(self, x):
         return torch.log(torch.cosh(x).clamp(min=1e-12))
 
-    def compute_tversky_loss(self, attention_map, binary_masks, has_masks):
-        device = attention_map.device
-        valid_idx = has_masks.bool()
-        
-        if valid_idx.any():
-            loss = self.log_cosh(self.tversky_loss(
-                attention_map[valid_idx],
-                binary_masks[valid_idx].float()
-            ))
-        else:
-            loss = torch.tensor(0.0, device=attention_map.device)
+    def compute_tversky_loss(self, attention_map, binary_masks, valid_idx):
+        loss = self.log_cosh(self.tversky_loss(
+            attention_map[valid_idx],
+            binary_masks[valid_idx].float()
+        ))
         return loss
-
     
-    def compute_tv_loss(self, attention_map, has_masks):
+    def compute_tv_loss(self, attention_map):
         """
-        attention_map: [B, 1, H, W] (LOGITS)
-        has_masks:     [B] boolean tensor
+        attention_map: [B, 1, H, W] (logits)
         """
-        if has_masks.any():
-            valid_idx = has_masks.nonzero(as_tuple=True)[0]
-            attn = attention_map[valid_idx]  # only supervised samples
+        # Convert logits → probabilities (stabilizes TV)
+        attn = torch.sigmoid(attention_map)
 
-            # vertical differences
-            diff_h = torch.abs(attn[:, :, 1:, :] - attn[:, :, :-1, :])
+        # Vertical differences
+        diff_h = torch.abs(attn[:, :, 1:, :] - attn[:, :, :-1, :])
 
-            # horizontal differences
-            diff_w = torch.abs(attn[:, :, :, 1:] - attn[:, :, :, :-1])
+        # Horizontal differences
+        diff_w = torch.abs(attn[:, :, :, 1:] - attn[:, :, :, :-1])
 
-            tv_loss = diff_h.mean() + diff_w.mean()
-
-        else:
-            tv_loss = torch.zeros(
-                (),
-                device=attention_map.device
-            )
+        # Normalize by total number of elements
+        tv_loss = (diff_h.sum() + diff_w.sum()) / attn.numel()
 
         return tv_loss
-
 
     def forward(self, pred, target, feature_maps, binary_masks, has_masks, epoch):
         # 1. Standard Classification Loss
@@ -119,17 +99,24 @@ class SaliencyGuidedLoss(nn.Module):
 
         #create attention map
         attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
-        
-    
-        sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, has_masks)
+
+        device = pred.device
+        valid_idx = has_masks.bool()
+        if valid_idx.any():
 
         
-        tversky_loss_fn = self.compute_tversky_loss(attention_map, binary_masks, has_masks)
+            sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, valid_idx)
 
-        #4 Total variation loss
-        tv_loss = self.compute_tv_loss(attention_map, has_masks)
+            
+            tversky_loss = self.compute_tversky_loss(attention_map, binary_masks, valid_idx)
 
-        total_loss = self.alpha * cls_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss_fn + self.delta * tv_loss 
+        else:
+            sigmoid_fc_loss = torch.zeros((), device=device)
+            tversky_loss = torch.zeros((), device=device)
 
-        return total_loss, cls_loss, sigmoid_fc_loss, tversky_loss_fn, tv_loss
+        tv_loss = self.compute_tv_loss(attention_map)
+
+        total_loss = self.alpha * cls_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss + self.delta * tv_loss 
+
+        return total_loss, cls_loss, sigmoid_fc_loss, tversky_loss, tv_loss
     

@@ -116,7 +116,7 @@ class MetricCalV3():
 
     @property
     def avg_tv_loss(self):
-        return (self.total_tv_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
+        return (self.total_tv_loss / self.total).item() if self.total > 0 else 0.0
     @property
     def avg_tversky_loss(self):
         return (self.total_tversky_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
