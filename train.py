@@ -12,7 +12,7 @@ from utils.MetricCalV3 import MetricCalV3
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 from model_builder.modelV2 import Model
 from dataset_helper.DatasetLoader import DatasetLoader
-from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric2, YAML_Reader, get_mean_std
+from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
 from loss_helper.SaliencyGuidedLossV2 import SaliencyGuidedLoss
 
@@ -266,28 +266,29 @@ def main():
         else:
             epochs_no_improve += 1
         if save_metrics:
-            Saving_Metric2(epoch=epoch, 
-                           train_cls_loss=train_metrics.avg_cls_loss,
-                           train_focal_loss=train_metrics.avg_focal_loss,
-                           train_tversky_loss=train_metrics.avg_tversky_loss,
-                           train_tv_loss=train_metrics.avg_tv_loss,
-                           train_overall_loss=train_loss,
-                           train_acc=train_acc,
-                           train_precision=train_metrics.precision_macro,
-                           train_recall=train_metrics.recall_macro,
-                           train_f1=train_metrics.f1_macro, 
-                           train_MCC=train_metrics.MCC,
-                           train_FMI=train_metrics.FMI,
-                           train_Cohen_Kappa=train_metrics.cohen_kappa,
-                           val_loss=val_loss,
-                           val_acc=val_acc,
-                           val_precision=val_metrics.precision_macro,
-                           val_recall=val_metrics.recall_macro,
-                           val_f1=val_metrics.f1_macro, 
-                           val_MCC=val_metrics.MCC,
-                           val_FMI=val_metrics.FMI,
-                           val_Cohen_Kappa=val_metrics.cohen_kappa,
-                           path=metrics_path)
+            metric_row = {
+                "train_cls_loss": train_metrics.avg_cls_loss,
+                "train_focal_loss": train_metrics.avg_focal_loss,
+                "train_tversky_loss": train_metrics.avg_tversky_loss,
+                "train_tv_loss": train_metrics.avg_tv_loss,
+                "train_overall_loss": train_loss,
+                "train_acc": train_acc,
+                "train_precision": train_metrics.precision_macro,
+                "train_recall": train_metrics.recall_macro,
+                "train_f1": train_metrics.f1_macro, 
+                "train_MCC": train_metrics.MCC,
+                "train_FMI": train_metrics.FMI,
+                "train_Cohen_Kappa": train_metrics.cohen_kappa,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+                "val_precision": val_metrics.precision_macro,
+                "val_recall": val_metrics.recall_macro,
+                "val_f1": val_metrics.f1_macro, 
+                "val_MCC": val_metrics.MCC,
+                "val_FMI": val_metrics.FMI,
+                "val_Cohen_Kappa": val_metrics.cohen_kappa,
+            }
+            Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
         if epochs_no_improve >= patience and early_stopping == True:
             print("Early stopping triggered at epoch {0}".format(epoch))
             break

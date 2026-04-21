@@ -168,6 +168,22 @@ def Saving_Metric2(epoch,
     metrics_df = pd.concat([metrics_df, pd.DataFrame([new_row])], ignore_index=True)
     metrics_df.to_csv(path, index=False)
 
+# metric_row là một dict, ** sẽ unpack nó thành key: value
+def Saving_Metric3(epoch, metric_row, path):
+    Create_Folder(path=path)
+    
+    row = {'epoch': epoch, **metric_row}
+
+    if os.path.exists(path):
+        df = pd.read_csv(path)
+    else:
+        df = pd.DataFrame()
+
+    df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+    df.to_csv(path, index=False)
+
+
 def Loading_Checkpoint(path, model, optimizer, scheduler, device):
     checkpoint = torch.load(path, map_location=device)
 
