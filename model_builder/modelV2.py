@@ -1,10 +1,10 @@
 import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights, swin_v2_t, Swin_V2_T_Weights
 
-from model_builder.resnet_BAM import Resnet50_BAM
-from model_builder.resnet_BCAM import Resnet50_BCBAM  
-from model_builder.resnet_CBAM import Resnet50_CBAM
-from model_builder.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM, Resnet50_Swin_CBAM   
+from model_builder.custom_model.resnet_BAM import Resnet50_BAM
+from model_builder.custom_model.resnet_BCAM import Resnet50_BCBAM  
+from model_builder.custom_model.resnet_CBAM import Resnet50_CBAM
+from model_builder.custom_model.resnet_Swin import Resnet50_Swin, Resnet50_Swin_BAM, Resnet50_Swin_CBAM   
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type, relu_replace=False):
