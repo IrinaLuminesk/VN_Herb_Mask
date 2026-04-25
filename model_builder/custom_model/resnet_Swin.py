@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights, resnet18, ResNet18_Weights, swin_v2_b, Swin_V2_B_Weights
+from torchvision.models import resnet50, ResNet50_Weights, swin_v2_b, Swin_V2_B_Weights
 import torch
 import torch.nn.functional as F
 

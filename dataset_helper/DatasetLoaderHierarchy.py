@@ -119,7 +119,7 @@ class HierarchialDataloader(Dataset):
         img = Image.open(image_path).convert("RGB")
         img  = tv_tensors.Image(img)
         img = self.data_transform(img)
-        return img, label
+        return img, torch.Tensor(label)
 
 
 class DatasetLoader():
