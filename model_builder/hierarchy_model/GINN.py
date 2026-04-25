@@ -151,6 +151,10 @@ class GINN(nn.Module):
         self.hier_classifyhead = {}
         for hier in self.hier_names:
             hier_stage = nn.Sequential(
+                nn.Linear(2048*Att_MAP[hier], 2048),
+                nn.BatchNorm1d(2048),
+                nn.ReLU(inplace=True),
+                nn.Dropout(0.4),
                 nn.Linear(2048, 1024),
                 nn.BatchNorm1d(1024),
                 nn.ReLU(inplace=True),
@@ -159,7 +163,6 @@ class GINN(nn.Module):
             )
             self.hier_classifyhead[hier] = hier_stage
     def forward(self, x):
-        batch_size = x.size(0)
         # trunk
         x = self.feature_embedding(x)  # (B,1024,4,8)
         # branch
@@ -169,7 +172,7 @@ class GINN(nn.Module):
             hier_x = self.hier_branch[hier](hier_x)
             multih_fmap[hier] = hier_x   # (B,2048,2,8)
 
-        multih_fmatrixs, multih_scores = [], []
+        logits = []
 
         shallow_feature_matrix = None
         for hier in reversed(self.hier_names):
@@ -180,7 +183,6 @@ class GINN(nn.Module):
             shallow_feature_matrix, feature_matrix = self.hier_neck[hier].dohf(shallow_feature_matrix, feature_matrix)
             scores = self.hier_classifyhead[hier](feature_matrix)
             # aggregate dohf hierarchy feature
-            multih_fmatrixs.append(feature_matrix)
-            multih_scores.append(scores)
-        return multih_scores[::-1]
+            logits.append(scores)
+        return logits
 
