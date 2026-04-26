@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
+import copy
 
 class BasicConv2d(nn.Module):
 
@@ -130,31 +131,32 @@ class GINN(nn.Module):
             backbone_model.layer3,
         )
 
-        self.hier_branch = {}
+        self.hier_branch = nn.ModuleDict()
         # species, (genera), family, order
         for hier in self.hier_names:
-            hier_stage = nn.Sequential(
-                nn.Conv2d(1024, 1536, 3, 1, 1, bias=False),
-                nn.BatchNorm2d(1536),
-                nn.ReLU(inplace=True),
+            # hier_stage = nn.Sequential(
+            #     nn.Conv2d(1024, 1536, 3, 1, 1, bias=False),
+            #     nn.BatchNorm2d(1536),
+            #     nn.ReLU(inplace=True),
                 
-                nn.Conv2d(1536, 2048, 3, 1, 1, bias=False),
-                nn.BatchNorm2d(2048)
-            )
-            self.hier_branch[hier] = hier_stage
+            #     nn.Conv2d(1536, 2048, 3, 1, 1, bias=False),
+            #     nn.BatchNorm2d(2048)
+            # )
+            # self.hier_branch[hier] = hier_stage
+            self.hier_branch[hier] = copy.deepcopy(backbone_model.layer4) #2048
 
-        self.hier_neck = {}
+        self.hier_neck = nn.ModuleDict()
         for hier in self.hier_names:
             hier_stage = AttentionDohfNeck2(M=Att_MAP[hier])
             self.hier_neck[hier] = hier_stage
 
-        self.hier_classifyhead = {}
+        self.hier_classifyhead = nn.ModuleDict()
         for hier in self.hier_names:
             hier_stage = nn.Sequential(
-                nn.Linear(2048*Att_MAP[hier], 2048),
-                nn.BatchNorm1d(2048),
-                nn.ReLU(inplace=True),
-                nn.Dropout(0.4),
+                # nn.Linear(2048*Att_MAP[hier], 2048),
+                # nn.BatchNorm1d(2048),
+                # nn.ReLU(inplace=True),
+                # nn.Dropout(0.4),
                 nn.Linear(2048, 1024),
                 nn.BatchNorm1d(1024),
                 nn.ReLU(inplace=True),
@@ -184,5 +186,5 @@ class GINN(nn.Module):
             scores = self.hier_classifyhead[hier](feature_matrix)
             # aggregate dohf hierarchy feature
             logits.append(scores)
-        return logits
+        return logits[::-1] #Đảo ngược lại thứ tự
 
