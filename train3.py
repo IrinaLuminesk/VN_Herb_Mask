@@ -189,16 +189,16 @@ def main():
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
     best_acc = 0
 
-    # if resume == True:
-    #     begin_epoch = Loading_Checkpoint(path=checkpoint_path,
-    #                                      model=model,
-    #                                      optimizer=optimizer,
-    #                                      scheduler=scheduler,
-    #                                      device=device)
-    #     best_acc = Get_Max_Acc(metrics_path)
+    if resume == True:
+        begin_epoch = Loading_Checkpoint(path=checkpoint_path,
+                                         model=model,
+                                         optimizer=optimizer,
+                                         scheduler=scheduler,
+                                         device=device)
+        best_acc = Get_Max_Acc(metrics_path)
 
     for epoch in range(begin_epoch, end_epoch):
-        train(epoch, 
+        train_metrics = train(epoch, 
                                 end_epoch, 
                                 batchWiseAug=None,
                                 model=model, 
@@ -207,11 +207,11 @@ def main():
                                 optimizer=optimizer, 
                                 device=device,
                                 num_classes=len(CLASSES))
-        # train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.05,gamma=0.01), train_metrics.avg_accuracy
+        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0,gamma=0), train_metrics.avg_accuracy
         scheduler.step()
         print()
         val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
-        # val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy
+        val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy
         print()
 
         if save_checkpoint == True:
@@ -222,45 +222,45 @@ def main():
                             last_epoch=epoch, 
                             path=checkpoint_path)
 
-        # print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
-        #     format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
-        # print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
-        #     format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
-        # if val_acc > best_acc:
-        #     if save_best == True:
-        #         print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
-        #             format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-        #         Saving_Best(model, best_path)
-        #     else:
-        #         print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
-        #             format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-        #     best_acc = val_acc
-        #     epochs_no_improve = 0  # reset patience
-        # else:
-        #     epochs_no_improve += 1
-        # if save_metrics:
-        #     metric_row = {
-        #         "train_cls_loss": train_metrics.avg_cls_loss,
-        #         "train_acc": train_acc,
-        #         "train_precision": train_metrics.precision_macro,
-        #         "train_recall": train_metrics.recall_macro,
-        #         "train_f1": train_metrics.f1_macro, 
-        #         "train_MCC": train_metrics.MCC,
-        #         "train_FMI": train_metrics.FMI,
-        #         "train_Cohen_Kappa": train_metrics.cohen_kappa,
-        #         "val_loss": val_loss,
-        #         "val_acc": val_acc,
-        #         "val_precision": val_metrics.precision_macro,
-        #         "val_recall": val_metrics.recall_macro,
-        #         "val_f1": val_metrics.f1_macro, 
-        #         "val_MCC": val_metrics.MCC,
-        #         "val_FMI": val_metrics.FMI,
-        #         "val_Cohen_Kappa": val_metrics.cohen_kappa,
-        #     }
-        #     Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
-        # if epochs_no_improve >= patience and early_stopping == True:
-        #     print("Early stopping triggered at epoch {0}".format(epoch))
-        #     break
+        print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
+            format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
+        print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
+            format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
+        if val_acc > best_acc:
+            if save_best == True:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+                Saving_Best(model, best_path)
+            else:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+            best_acc = val_acc
+            epochs_no_improve = 0  # reset patience
+        else:
+            epochs_no_improve += 1
+        if save_metrics:
+            metric_row = {
+                "train_cls_loss": train_metrics.avg_cls_loss,
+                "train_acc": train_acc,
+                "train_precision": train_metrics.precision_macro,
+                "train_recall": train_metrics.recall_macro,
+                "train_f1": train_metrics.f1_macro, 
+                "train_MCC": train_metrics.MCC,
+                "train_FMI": train_metrics.FMI,
+                "train_Cohen_Kappa": train_metrics.cohen_kappa,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+                "val_precision": val_metrics.precision_macro,
+                "val_recall": val_metrics.recall_macro,
+                "val_f1": val_metrics.f1_macro, 
+                "val_MCC": val_metrics.MCC,
+                "val_FMI": val_metrics.FMI,
+                "val_Cohen_Kappa": val_metrics.cohen_kappa,
+            }
+            Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
+        if epochs_no_improve >= patience and early_stopping == True:
+            print("Early stopping triggered at epoch {0}".format(epoch))
+            break
         print()
 
     
