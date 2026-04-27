@@ -153,10 +153,10 @@ class GINN(nn.Module):
         self.hier_classifyhead = nn.ModuleDict()
         for hier in self.hier_names:
             hier_stage = nn.Sequential(
-                # nn.Linear(2048*Att_MAP[hier], 2048),
-                # nn.BatchNorm1d(2048),
-                # nn.ReLU(inplace=True),
-                # nn.Dropout(0.4),
+                nn.Linear(2048*Att_MAP[hier], 2048),
+                nn.BatchNorm1d(2048),
+                nn.ReLU(inplace=True),
+                nn.Dropout(0.4),
                 nn.Linear(2048, 1024),
                 nn.BatchNorm1d(1024),
                 nn.ReLU(inplace=True),
