@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 #Hàm tự định nghĩa
 from aug_helper.BatchWiseAug import BatchWiseAug
+from model_builder.hierarchy_model.Resnet50_Hier import Resnet50_Hier
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV2 import MetricCalV2
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
@@ -65,7 +66,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         optimizer.step()
 
         metrics.update_test(loss=loss,
-                            outputs=outputs[0],
+                            outputs=outputs["species"],
                             targets= targets[:, 0],
                              type="soft" if batchWiseAug != None else "hard")
     return metrics
@@ -158,7 +159,7 @@ def main():
     # if enabled_batchwise_transform:
     #     batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
-    model = GINN(hierarchy={'class':200 , 'genus': 125, 'family': 36, 'order': 13}, use_attention=False).to(device)
+    model = Resnet50_Hier(hierarchy={'species':200 , 'genus': 125, 'family': 36, 'order': 13}).to(device)
 
     eval_criterion = HierarchyLoss()
     train_criterion = HierarchyLoss()
