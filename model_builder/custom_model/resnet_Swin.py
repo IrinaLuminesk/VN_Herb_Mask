@@ -51,6 +51,7 @@ class Resnet50_Swin_BAM(nn.Module):
             if self.relu_replace:
                 self.replace_relu(backbone_model)
                 activation = nn.SiLU()
+                print("Replacing RELU with SILU")
 
             swin_weights = Swin_V2_B_Weights.DEFAULT
             swin_model = swin_v2_b(weights=swin_weights)

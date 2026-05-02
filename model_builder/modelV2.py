@@ -43,6 +43,7 @@ class Model(nn.Module):
                 if self.relu_replace:
                     self.replace_relu(model)
                     activation = nn.SiLU()
+                    print("Replacing RELU with SILU")
                 in_features = model.fc.in_features #2048
                 fc = nn.Sequential(
                     nn.Linear(in_features, 1024),

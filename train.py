@@ -186,7 +186,7 @@ def main():
     train_criterion = SaliencyGuidedLoss(type="train", 
                                          enabled_batchwise_transform=enabled_batchwise_transform, 
                                          alpha=1,
-                                         beta=0.1,
+                                         beta=0.2,
                                          gamma=0.1,
                                          delta=0.001)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
@@ -232,7 +232,7 @@ def main():
                                 optimizer=optimizer, 
                                 device=device,
                                 num_classes=len(CLASSES))
-        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.1,gamma=0.1, delta=0.001), train_metrics.avg_accuracy
+        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.2,gamma=0.1, delta=0.001), train_metrics.avg_accuracy
         scheduler.step()
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
