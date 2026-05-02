@@ -17,13 +17,14 @@ class Spatial_Attention_Module(nn.Module):
         return output 
 
 class Channel_Attention_Module(nn.Module):
-    def __init__(self, channels, r):
+    def __init__(self, channels, replace_relu , r):
         super().__init__()
         self.channels = channels
+        self.replace_relu = replace_relu
         self.r = r
         self.linear = nn.Sequential(
             nn.Linear(in_features=self.channels, out_features=self.channels//self.r, bias=True),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True) if replace_relu == False else nn.SiLU(inplace=True),
             nn.Linear(in_features=self.channels//self.r, out_features=self.channels, bias=True))
 
     def forward(self, x):
@@ -55,13 +56,14 @@ class CBAM(nn.Module):
     
 
 class BidirectionalAttentionModule(nn.Module):
-    def __init__(self, channels, r=4):
+    def __init__(self, channels, replace_relu=False, r=4):
         super().__init__()
 
         self.channels = channels
+        self.replace_relu = replace_relu
         self.r = r
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
-        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
+        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, replace_relu=replace_relu, r=self.r)
 
         # self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
         self.fusion = nn.Sequential(
