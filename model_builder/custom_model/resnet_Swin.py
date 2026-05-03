@@ -68,16 +68,16 @@ class Resnet50_Swin_BAM(nn.Module):
             self.layer3 = backbone_model.layer3
 
             #Sau layer 3 có một layer BAM trước khi chia ra 2 nhánh
-            self.BAM_layer1 = BidirectionalAttentionModule(1024, replace_relu=False)
+            self.BAM_layer1 = BidirectionalAttentionModule(1024, replace_relu=self.relu_replace)
 
 
             self.layer4 = backbone_model.layer4
-            self.BAM_layer2_branchA = BidirectionalAttentionModule(2048, replace_relu=False)
+            self.BAM_layer2_branchA = BidirectionalAttentionModule(2048, replace_relu=self.relu_replace)
 
             #Swin
             self.swin_layer = swin_model.features[7]
             self.adapt_cnn_2_Swin = CNNtoSwinAdapter() #Dùng để đổi [B, 16, 16, 1024] sang [B, 1024, 8, 8]
-            self.BAM_layer2_branchB = BidirectionalAttentionModule(channels=1024, replace_relu=False)
+            self.BAM_layer2_branchB = BidirectionalAttentionModule(channels=1024, replace_relu=self.relu_replace)
 
 
             #Fusion
