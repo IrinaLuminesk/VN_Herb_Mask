@@ -172,6 +172,7 @@ def main():
     batchWiseAug = None
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
+        print("Training with batchWiseAug")
 
     model = Model(len(CLASSES), model_type, relu_replace=relu_replace).to(device)
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
