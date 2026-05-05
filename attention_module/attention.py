@@ -1,3 +1,5 @@
+from multiprocessing import active_children
+from turtle import forward
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -38,12 +40,15 @@ class Channel_Attention_Module(nn.Module):
         return output
 
 class CBAM(nn.Module):
-    def __init__(self, channels, r=4):
+    def __init__(self, channels, r=4, replace_relu=False):
         super().__init__()
         self.channels = channels
         self.r = r
+        self.replace_relu = replace_relu
+        self.build_layers()
+    def build_layers(self):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
-        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
+        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r, replace_relu=self.replace_relu)
     def forward(self, x):
         ori_x = x
         channel_att = self.channel_attention_module(x)
@@ -56,21 +61,32 @@ class CBAM(nn.Module):
     
 
 class BidirectionalAttentionModule(nn.Module):
-    def __init__(self, channels, replace_relu=False, r=4):
+    def __init__(self, channels, r=4, replace_relu=False):
         super().__init__()
 
         self.channels = channels
-        self.replace_relu = replace_relu
         self.r = r
+        self.replace_relu = replace_relu
+    def build_layers(self):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
-        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, replace_relu=replace_relu, r=self.r)
+        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r, replace_relu=self.replace_relu)
 
         # self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
-        self.fusion = nn.Sequential(
-            nn.Conv2d(channels*2, channels, kernel_size=1, bias=False),
-            nn.BatchNorm2d(channels)
-        )
+        layers = [
+            nn.Conv2d(self.channels*2, self.channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(self.channels)
+        ]
+        if self.replace_relu:
+            layers.append(nn.SiLU(inplace=True))
+            
+        self.fusion = nn.Sequential(*layers)
 
+        # activation = None if self.replace_relu == False else nn.SiLU(inplace=True)
+        # self.fusion = nn.Sequential(
+        #     nn.Conv2d(self.channels*2, self.channels, kernel_size=1, bias=False),
+        #     nn.BatchNorm2d(self.channels),
+        #     activation
+        # )
     def forward(self, f1, f2):
         """
         f1: original feature map
@@ -99,20 +115,24 @@ class BidirectionalAttentionModule(nn.Module):
         return fused + x
     
 class BCBAM(nn.Module):
-    def __init__(self, channels, r=4):
+    def __init__(self, channels, r=4, replace_relu=False):
         super().__init__()
 
         self.channels = channels
         self.r = r
+        self.replace_relu = replace_relu
+    def build_layers(self):
         self.spatial_attention_module = Spatial_Attention_Module(bias=False)
-        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r)
+        self.channel_attention_module = Channel_Attention_Module(channels=self.channels, r=self.r, replace_relu=self.replace_relu)
 
-        # self.fusion = nn.Conv2d(channels * 2, self.channels, kernel_size=1)
-        self.fusion = nn.Sequential(
-            nn.Conv2d(channels*2, channels, kernel_size=1, bias=False),
-            nn.BatchNorm2d(channels)
-        )
-
+        layers = [
+            nn.Conv2d(self.channels*2, self.channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(self.channels)
+        ]
+        if self.replace_relu:
+            layers.append(nn.SiLU(inplace=True))
+            
+        self.fusion = nn.Sequential(*layers)
     def forward(self, x):
         #Branch 1
         channel_att1 = self.channel_attention_module(x)
@@ -134,3 +154,26 @@ class BCBAM(nn.Module):
         x = self.fusion(x) #Đưa channel từ 2C do concatenate về thành C
 
         return x + ori_x
+    
+class Attention_Layer(nn.Module):
+    def __init__(self, layer_type, channels, replace_relu=False, r=4):
+        self.layer_type = layer_type
+        self.channels = channels
+        self.r = r
+        self.replace_relu = replace_relu
+        self.build_layers()
+    def build_layers(self):
+        match self.layer_type:
+            case 1: #CBAM
+                self.attention_layer = CBAM(self.channels, self.r, self.replace_relu)
+            case 2: #BidirectionalAttentionModule with Aug
+                self.attention_layer = BidirectionalAttentionModule(channels=self.channels, r=self.r, replace_relu=self.replace_relu)
+            case 3: #BAM
+                self.attention_layer = BCBAM(channels=self.channels, r=self.r, replace_relu=self.replace_relu)
+    
+    def forward(self, *inputs):
+        match self.layer_type:
+            case 1:
+                return self.attention_layer(inputs[0])
+            case 2 | 3:
+                return self.attention_layer(inputs[0], inputs[1])

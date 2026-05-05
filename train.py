@@ -125,6 +125,14 @@ def main():
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
     relu_replace = config["TRAIN"]["TRAIN_PARA"]["RELU_REPLACE"]
+
+    #Loss weight
+    alpha = float(config["TRAIN"]["LOSS"]["ALPHA"])
+    beta = float(config["TRAIN"]["LOSS"]["BETA"])
+    gamma = float(config["TRAIN"]["LOSS"]["GAMMA"])
+    delta = float(config["TRAIN"]["LOSS"]["DELTA"])
+
+
     # if model_type == 8:
     #     img_size = [224, 224]
 
@@ -186,10 +194,10 @@ def main():
     #     train_criterion = SoftTargetCrossEntropy()
     train_criterion = SaliencyGuidedLoss(type="train", 
                                          enabled_batchwise_transform=enabled_batchwise_transform, 
-                                         alpha=1,
-                                         beta=0.2,
-                                         gamma=0.1,
-                                         delta=0.001)
+                                         alpha=alpha,
+                                         beta=beta,
+                                         gamma=gamma,
+                                         delta=delta)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     # if model_type not in [8, 9]:
@@ -233,7 +241,7 @@ def main():
                                 optimizer=optimizer, 
                                 device=device,
                                 num_classes=len(CLASSES))
-        train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.2,gamma=0.1, delta=0.001), train_metrics.avg_accuracy
+        train_loss, train_acc = train_metrics.overall_loss(alpha=alpha,beta=beta,gamma=gamma, delta=delta), train_metrics.avg_accuracy
         scheduler.step()
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train

@@ -1,35 +1,36 @@
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights, resnet18, ResNet18_Weights, swin_v2_b, Swin_V2_B_Weights
+from torchvision.models import resnet50, ResNet50_Weights, swin_v2_b, Swin_V2_B_Weights
 import torch
 import torch.nn.functional as F
 
 from attention_module.attention import CBAM, BidirectionalAttentionModule
+from attention_module.helper_layers import CNNtoSwinAdapter, FusionBlock
 
-class CNNtoSwinAdapter(nn.Module):
-    def forward(self, x):
-        x = F.avg_pool2d(x, 2)
-        x = x.permute(0, 2, 3, 1)
-        return x
+# class CNNtoSwinAdapter(nn.Module):
+#     def forward(self, x):
+#         x = F.avg_pool2d(x, 2)
+#         x = x.permute(0, 2, 3, 1)
+#         return x
     
-class FusionBlock(nn.Module):
-    def __init__(self):
-        super().__init__()
+# class FusionBlock(nn.Module):
+#     def __init__(self):
+#         super().__init__()
 
-        self.normA = nn.BatchNorm2d(2048)
-        self.normB = nn.BatchNorm2d(1024)
+#         self.normA = nn.BatchNorm2d(2048)
+#         self.normB = nn.BatchNorm2d(1024)
 
-        # learnable scaling
-        self.alpha = nn.Parameter(torch.ones(1))
-        self.beta = nn.Parameter(torch.ones(1))
+#         # learnable scaling
+#         self.alpha = nn.Parameter(torch.ones(1))
+#         self.beta = nn.Parameter(torch.ones(1))
 
-    def forward(self, A, B):
-        A = self.normA(A)
-        B = self.normB(B)
+#     def forward(self, A, B):
+#         A = self.normA(A)
+#         B = self.normB(B)
 
-        A = self.alpha * A
-        B = self.beta * B
+#         A = self.alpha * A
+#         B = self.beta * B
 
-        return torch.cat([A, B], dim=1)  # 3072 channels
+#         return torch.cat([A, B], dim=1)  # 3072 channels
 
 class Resnet50_Swin_BAM(nn.Module):
     def __init__(self, num_classes, relu_replace=False):

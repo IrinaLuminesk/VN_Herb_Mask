@@ -7,6 +7,8 @@ import numpy as np
 import os
 import pandas as pd
 
+import torch.nn as nn
+
 def Create_Folder(path):
     folder = os.path.dirname(path)
     os.makedirs(folder, exist_ok=True)
@@ -232,3 +234,10 @@ def get_num_workers(transform_heavy=True):
     workers = min(workers, cpu_cores - 1)  # never use ALL CPU cores
 
     return workers
+
+def replace_relu_helper(model):
+    for name, child in model.named_children():
+        if isinstance(child, nn.ReLU):
+            setattr(model, name, nn.SiLU(inplace=True))
+        else:
+            replace_relu_helper(child)
