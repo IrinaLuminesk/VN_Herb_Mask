@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 class CNNtoSwinAdapter(nn.Module):
     def __init__(self, pool_layer=False, kernel_size=2):
+        super().__init__()
         self.pool_layer = pool_layer
         self.kernel_size = kernel_size
         self.build_layers()
