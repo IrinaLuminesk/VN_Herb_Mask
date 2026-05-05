@@ -157,6 +157,7 @@ class BCBAM(nn.Module):
     
 class Attention_Layer(nn.Module):
     def __init__(self, layer_type, channels, replace_relu=False, r=4):
+        super().__init__()
         self.layer_type = layer_type
         self.channels = channels
         self.r = r
