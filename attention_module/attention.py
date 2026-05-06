@@ -165,6 +165,8 @@ class Attention_Layer(nn.Module):
         self.build_layers()
     def build_layers(self):
         match self.layer_type:
+            case 0: #Identity không làm gì cả
+                self.attention_layer = nn.Identity()
             case 1: #CBAM
                 self.attention_layer = CBAM(self.channels, self.r, self.replace_relu)
             case 2: #BidirectionalAttentionModule with Aug
@@ -174,7 +176,7 @@ class Attention_Layer(nn.Module):
     
     def forward(self, *inputs):
         match self.layer_type:
-            case 1:
+            case 0 | 1:
                 return self.attention_layer(inputs[0])
             case 2 | 3:
                 return self.attention_layer(inputs[0], inputs[1])

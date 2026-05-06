@@ -9,11 +9,10 @@ from tqdm import tqdm
 from aug_helper.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV3 import MetricCalV3
-from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
-from model_builder.modelV2 import Model
+from learning_rate_helper.learning_rate import PiecewiseScheduler
+from model_builder.modelV3 import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
-# from CBAM_Resnet import Model as CBAM_Resnet
 from loss_helper.SaliencyGuidedLossV2 import SaliencyGuidedLoss
 
 import torch
@@ -124,6 +123,7 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
+    attention_layer_type = int(config["TRAIN"]["TRAIN_PARA"]["ATTENTION_LAYER_TYPE"])
     relu_replace = config["TRAIN"]["TRAIN_PARA"]["RELU_REPLACE"]
 
     #Loss weight
@@ -182,7 +182,12 @@ def main():
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
         print("Training with batchWiseAug")
 
-    model = Model(len(CLASSES), model_type, relu_replace=relu_replace).to(device)
+    model = Model(
+        num_classes=len(CLASSES), 
+        model_type=model_type, 
+        attention_layer_type=attention_layer_type,
+        replace_relu=relu_replace
+    ).to(device)
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
     # model.model.layer4.feature_maps = None
     # hook_handle = model.model.layer4.register_forward_hook(hook_fn)
