@@ -5,6 +5,7 @@ from model_builder.new_custom_model.Xception_Swin import Xception_Swin
 
 class Model(nn.Module):
     def __init__(self, num_classes, model_type, attention_layer_type, replace_relu=False):
+        super().__init__()
         self.num_classes = num_classes
         self.model_type = model_type
         self.attention_layer_type = attention_layer_type
