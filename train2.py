@@ -10,7 +10,7 @@ from aug_helper.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV2 import MetricCalV2
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
-from model_builder.modelV2 import Model
+from model_builder.baseline import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
@@ -108,8 +108,6 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
-    if model_type == 8:
-        img_size = [224, 224]
 
     #Learning_rate
     if model_type not in [0]:
