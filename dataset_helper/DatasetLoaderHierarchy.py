@@ -181,19 +181,42 @@ class DatasetLoader():
     #Tạo ma trận để tính loss, hiện tại chưa tìm ra cách tạo ma trận động nên đang làm thủ công
     def Create_Matrix(self, x, y):
         data = pd.read_csv(self.hierarchy_label_root)
-        x_to_y_dict = self.Create_x_to_y_dict(data, x, y)
-        x_idx = {g:i for i, g in enumerate(data[x].unique())}
-        y_idx = {g:i for i, g in enumerate(data[y].unique())}
-        x_to_y_idx = {
-            x_idx[x]: y_idx[y]
-            for x, y in x_to_y_dict.items()
-        }
-        H_yx = torch.zeros(len(y_idx), len(x_idx))
+        x_cat = data[x].astype("category")
+        y_cat = data[y].astype("category")
 
-        # fill y → x
-        for x, y in x_to_y_idx.items():
-            H_yx[y, x] = 1
-        return H_yx
+        x2idx = {
+            cat: idx
+            for idx, cat in enumerate(x_cat.cat.categories)
+        }
+        y2idx = {
+            cat: idx
+            for idx, cat in enumerate(y_cat.cat.categories)
+        }
+
+        H_xy = torch.zeros(len(x2idx),len(y2idx))
+
+        xy_pairs = data[[x, y]].drop_duplicates()
+        
+        for _, row in xy_pairs.iterrows():
+            x_idx = x2idx[row[x]]
+            y_idx = y2idx[row[y]]
+            H_xy[x_idx, y_idx] = 1
+        return H_xy
+
+
+        # x_to_y_dict = self.Create_x_to_y_dict(data, x, y)
+        # x_idx = {g:i for i, g in enumerate(data[x].unique())}
+        # y_idx = {g:i for i, g in enumerate(data[y].unique())}
+        # x_to_y_idx = {
+        #     x_idx[x]: y_idx[y]
+        #     for x, y in x_to_y_dict.items()
+        # }
+        # H_yx = torch.zeros(len(y_idx), len(x_idx))
+
+        # # fill y → x
+        # for x, y in x_to_y_idx.items():
+        #     H_yx[y, x] = 1
+        # return H_yx
     def Create_x_to_y_dict(self, data, x, y):
         return (
             data[[x, y]]
