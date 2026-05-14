@@ -177,3 +177,27 @@ class DatasetLoader():
                 persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
             )
         return loader
+    
+    #Tạo ma trận để tính loss, hiện tại chưa tìm ra cách tạo ma trận động nên đang làm thủ công
+    def Create_Matrix(self, x, y):
+        data = pd.read_csv(self.hierarchy_label_root)
+        x_to_y_dict = self.Create_x_to_y_dict(data, x, y)
+        x_idx = {g:i for i, g in enumerate(data[x].unique())}
+        y_idx = {g:i for i, g in enumerate(data[y].unique())}
+        x_to_y_idx = {
+            x_idx[x]: y_idx[y]
+            for x, y in x_to_y_dict.items()
+        }
+        H_yx = torch.zeros(len(y_idx), len(x_idx))
+
+        # fill y → x
+        for x, y in x_to_y_idx.items():
+            H_yx[y, x] = 1
+        return H_yx
+    def Create_x_to_y_dict(self, data, x, y):
+        return (
+            data[[x, y]]
+            .drop_duplicates()
+            .set_index(x)[y]
+            .to_dict()
+        )
