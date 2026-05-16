@@ -24,7 +24,7 @@ import torch.optim as optim
 from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 num_classes = {'Species':200 , 'Genus': 125, 'Family': 36, 'Order': 13}
-
+consistent_list = ["Order2Family", "Family2Genus", "Genus2Species"]
 def parse_args():
     parser = argparse.ArgumentParser(description="A simple argparse example")
     
@@ -52,7 +52,7 @@ def set_seed(seed=42):
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs):
     model.train()
-    metrics = MetricCal_Hier(num_classes=num_classes, device=device)
+    metrics = MetricCal_Hier(num_classes=num_classes,consistent_list=consistent_list , device=device)
     for inputs, targets in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
@@ -75,7 +75,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
-    metrics = MetricCal_Hier(num_classes=num_classes, device=device)
+    metrics = MetricCal_Hier(num_classes=num_classes, consistent_list=consistent_list, device=device)
     with torch.no_grad():
         for inputs, targets in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
@@ -224,12 +224,12 @@ def main():
                                 criterion=train_criterion, 
                                 optimizer=optimizer, 
                                 device=device,
-                                num_classes=len(CLASSES), 
+                                num_classes=num_classes, 
                                 hier_matrixs=hier_matrixs)
         train_loss, train_acc = train_metrics.overall_loss(weights=0.5), train_metrics.avg_accuracy("Species")
         scheduler.step()
         print()
-        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
+        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes)
         val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy("Species")
         print()
 

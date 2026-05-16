@@ -1,7 +1,9 @@
 import torch
+#Quên cái vụ Consistent loss có số loss ít hơn class, nên sửa lại
 class MetricCal_Hier():
-    def __init__(self, num_classes, device) -> None:
+    def __init__(self, num_classes, consistent_list, device) -> None:
         self.num_classes = num_classes #Dây là một dict
+        self.consistent_list = consistent_list #Đây là một list, số lượng của nó = len(num_classes) - 1
         self.device = device
         self.reset()
     def reset(self):
@@ -14,7 +16,7 @@ class MetricCal_Hier():
         self.total_consistent_loss = torch.zeros(1, device=self.device)
         self.each_consistent_loss = {
             key: torch.zeros(1, device=self.device) 
-            for key in self.num_classes.keys()
+            for key in self.consistent_list
         } #Lưu loss của từng cấp
         
         # self.total_overall_loss = torch.zeros(1, device=self.device)
@@ -112,8 +114,6 @@ class MetricCal_Hier():
         true_class = dict()
         for index, key in enumerate(self.num_classes.keys()):
             self.each_cls_loss[key] = each_cls_loss[key].detach() * batch_size
-            self.each_consistent_loss[key] = each_consistent_loss[key].detach() * batch_size
-
             if type == "soft":
                 pred_class[key] = outputs[key].argmax(dim=1)
                 true_class[key] = targets[:, index].argmax(dim=1)
@@ -134,6 +134,9 @@ class MetricCal_Hier():
             self.tp_per_class[key] += cm.diag()
             self.fp_per_class[key] += cm.sum(dim=0) - cm.diag()
             self.fn_per_class[key] += cm.sum(dim=1) - cm.diag()
+
+        for key in self.consistent_list:
+            self.each_consistent_loss[key] = each_consistent_loss[key].detach() * batch_size
 
         self.total += batch_size
 
