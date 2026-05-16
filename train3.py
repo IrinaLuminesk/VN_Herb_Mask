@@ -9,7 +9,7 @@ from tqdm import tqdm
 from aug_helper.BatchWiseAug import BatchWiseAug
 from loss_helper.HierarchyGuidedLoss import HierarchyGuidedLoss
 # from utils.MetricCal import MetricCal
-from utils.MetricCalV2 import MetricCalV2
+from utils.MetricCal_Hier import MetricCal_Hier
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 # from model_builder.baseline import Model
 from model_builder.hierarchy_model.hierarchy_models import Resnet50_Hierarchy
@@ -23,7 +23,7 @@ import torch.optim as optim
 
 from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
-num_classes = {'species':200 , 'genus': 125, 'family': 36, 'order': 13}
+num_classes = {'Species':200 , 'Genus': 125, 'Family': 36, 'Order': 13}
 
 def parse_args():
     parser = argparse.ArgumentParser(description="A simple argparse example")
@@ -52,7 +52,7 @@ def set_seed(seed=42):
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs):
     model.train()
-    # metrics = MetricCalV2(num_classes=num_classes, device=device)
+    metrics = MetricCal_Hier(num_classes=num_classes, device=device)
     for inputs, targets in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
@@ -60,27 +60,32 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         optimizer.zero_grad()
         outputs = model(inputs)
         
-        _, _, loss = criterion(outputs, targets, hier_matrixs)
-        loss.backward()
+        classification_loss, each_classification_loss, consistent_loss, each_consistent_loss, total_loss = criterion(outputs, targets, hier_matrixs)
+        total_loss.backward()
         optimizer.step()
 
-        # metrics.update_test(loss=loss,
-        #                     outputs=outputs,
-        #                     targets= targets,
-        #                      type="soft" if batchWiseAug != None else "hard")
-    return 0
+        metrics.update_train(each_cls_loss=each_classification_loss, 
+                     total_cls_loss=classification_loss, 
+                     each_consistent_loss=each_consistent_loss, 
+                     total_consistent_loss=consistent_loss, 
+                     outputs=outputs, 
+                     targets=targets, 
+                     type="soft" if batchWiseAug != None else "hard")
+    return metrics
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
-    # metrics = MetricCalV2(num_classes=num_classes, device=device)
+    metrics = MetricCal_Hier(num_classes=num_classes, device=device)
     with torch.no_grad():
         for inputs, targets in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
             inputs, targets = inputs.to(device), targets.to(device)
+            targets = targets[:,0]
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            # metrics.update_test(loss=loss, outputs=outputs, targets=targets, type="hard")
-    return 0
+            outputs = outputs["Species"]
+            loss = criterion(outputs["Species"], targets)
+            metrics.update_test(loss=loss, outputs=outputs, targets=targets, type="hard")
+    return metrics
 
 def main():
     config = parse_args()
@@ -161,14 +166,14 @@ def main():
     keys.reverse()
     for i in range(len(keys) - 1):
         matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
-        hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1])
+        hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1]).to(device)
 
     batchWiseAug = None
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
     
-    model = Resnet50_Hierarchy(num_classes, 0, False)
+    model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
     train_criterion = HierarchyGuidedLoss(
@@ -221,62 +226,62 @@ def main():
                                 device=device,
                                 num_classes=len(CLASSES), 
                                 hier_matrixs=hier_matrixs)
-        # train_loss, train_acc = train_metrics.overall_loss(alpha=1,beta=0.05,gamma=0.01), train_metrics.avg_accuracy
+        train_loss, train_acc = train_metrics.overall_loss(weights=0.5), train_metrics.avg_accuracy("Species")
         scheduler.step()
         print()
         val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=len(CLASSES))
-        # val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy
+        val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy("Species")
         print()
 
-        # if save_checkpoint == True:
-        #     Saving_Checkpoint(epoch=epoch, 
-        #                     model=model, 
-        #                     optimizer=optimizer, 
-        #                     scheduler=scheduler,
-        #                     last_epoch=epoch, 
-        #                     path=checkpoint_path)
+        if save_checkpoint == True:
+            Saving_Checkpoint(epoch=epoch, 
+                            model=model, 
+                            optimizer=optimizer, 
+                            scheduler=scheduler,
+                            last_epoch=epoch, 
+                            path=checkpoint_path)
 
-        # print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
-        #     format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
-        # print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
-        #     format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
-        # if val_acc > best_acc:
-        #     if save_best == True:
-        #         print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
-        #             format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-        #         Saving_Best(model, best_path)
-        #     else:
-        #         print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
-        #             format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
-        #     best_acc = val_acc
-        #     epochs_no_improve = 0  # reset patience
-        # else:
-        #     epochs_no_improve += 1
-        # if save_metrics:
-        #     metric_row = {
-        #         "train_cls_loss": train_metrics.avg_cls_loss,
-        #         "train_acc": train_acc,
-        #         "train_precision": train_metrics.precision_macro,
-        #         "train_recall": train_metrics.recall_macro,
-        #         "train_f1": train_metrics.f1_macro, 
-        #         "train_MCC": train_metrics.MCC,
-        #         "train_FMI": train_metrics.FMI,
-        #         "train_Cohen_Kappa": train_metrics.cohen_kappa,
-        #         "val_loss": val_loss,
-        #         "val_acc": val_acc,
-        #         "val_precision": val_metrics.precision_macro,
-        #         "val_recall": val_metrics.recall_macro,
-        #         "val_f1": val_metrics.f1_macro, 
-        #         "val_MCC": val_metrics.MCC,
-        #         "val_FMI": val_metrics.FMI,
-        #         "val_Cohen_Kappa": val_metrics.cohen_kappa,
-        #     }
-        #     Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
-        # if epochs_no_improve >= patience and early_stopping == True:
-        #     print("Early stopping triggered at epoch {0}".format(epoch))
-        #     break
+        print("Epoch [{0}/{1}]: Training loss: {2}, Training Acc: {3}%".
+            format(epoch, end_epoch, train_loss, round(train_acc * 100.0, 2)))
+        print("Epoch [{0}/{1}]: Validation loss: {2}, Validation Acc: {3}%".
+            format(epoch, end_epoch, val_loss, round(val_acc * 100.0, 2)))
+        if val_acc > best_acc:
+            if save_best == True:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}. Saving best result".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+                Saving_Best(model, best_path)
+            else:
+                print("Validation accuracy increase from {0}% to {1}% at epoch {2}".
+                    format(round(best_acc * 100.0, 2), round(val_acc * 100.0, 2),  epoch))
+            best_acc = val_acc
+            epochs_no_improve = 0  # reset patience
+        else:
+            epochs_no_improve += 1
+        if save_metrics:
+            metric_row = {
+                "train_cls_loss": train_metrics.avg_cls_loss,
+                "train_acc": train_acc,
+                "train_precision": train_metrics.precision_macro("Species"),
+                "train_recall": train_metrics.recall_macro("Species"),
+                "train_f1": train_metrics.f1_macro("Species"), 
+                "train_MCC": train_metrics.MCC("Species"),
+                "train_FMI": train_metrics.FMI("Species"),
+                "train_Cohen_Kappa": train_metrics.cohen_kappa("Species"),
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+                "val_precision": val_metrics.precision_macro("Species"),
+                "val_recall": val_metrics.recall_macro("Species"),
+                "val_f1": val_metrics.f1_macro("Species"), 
+                "val_MCC": val_metrics.MCC("Species"),
+                "val_FMI": val_metrics.FMI("Species"),
+                "val_Cohen_Kappa": val_metrics.cohen_kappa("Species"),
+            }
+            Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
+        if epochs_no_improve >= patience and early_stopping == True:
+            print("Early stopping triggered at epoch {0}".format(epoch))
+            break
         print()
 
-    
+    #Cần debug lại để chắc chắn đúng
 if __name__ == '__main__':
     main()

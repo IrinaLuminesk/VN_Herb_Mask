@@ -34,8 +34,8 @@ class HierarchyGuidedLoss(nn.Module):
         loss = dict()
         for key in hier_matrixs.keys():
             x_name, y_name = key.split("2")
-            x = torch.softmax(input=logits[x_name])
-            y = torch.softmax(input=logits[y_name])
+            x = torch.softmax(logits[x_name], dim=0)
+            y = torch.softmax(logits[y_name], dim=0)
             xy_score = torch.einsum("bi,ij,bj->b", x, hier_matrixs[key], y)
             loss_xy = loss[key] = -torch.log(xy_score + 1e-8).mean()
             consistency_loss += loss_xy
@@ -58,4 +58,4 @@ class HierarchyGuidedLoss(nn.Module):
 
         total_loss = classification_loss + 0.5 * consistent_loss
 
-        return each_classification_loss, each_consistent_loss, total_loss
+        return classification_loss, each_classification_loss, consistent_loss, each_consistent_loss, total_loss
