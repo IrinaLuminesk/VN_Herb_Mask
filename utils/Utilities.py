@@ -6,6 +6,7 @@ import yaml
 import numpy as np
 import os
 import pandas as pd
+import pickle
 
 import torch.nn as nn
 
@@ -241,3 +242,11 @@ def replace_relu_helper(model):
             setattr(model, name, nn.SiLU(inplace=True))
         else:
             replace_relu_helper(child)
+
+def serialize_object(data, path):
+    with open(path, "wb") as f:
+        pickle.dump(data, f)
+
+def unserialize_object(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)

@@ -83,7 +83,7 @@ def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
             targets = targets[:,0]
             outputs = model(inputs)
             outputs = outputs["Species"]
-            loss = criterion(outputs["Species"], targets)
+            loss = criterion(outputs, targets)
             metrics.update_test(loss=loss, outputs=outputs, targets=targets, type="hard")
     return metrics
 
