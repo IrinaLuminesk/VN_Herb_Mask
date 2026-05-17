@@ -6,7 +6,6 @@ import torch
 from pathlib import Path
 from PIL import Image
 import numpy as np
-from collections import defaultdict
 import pandas as pd
 
 
@@ -23,7 +22,7 @@ class HierarchialDataloader(Dataset):
         self.data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
 
         self.class_to_idx = self.Get_Class_idx()
-        self.samples = self.Get_Samples()
+        self.samples, self.num_classes = self.Get_Samples()
     def Get_Class_idx(self):
         data = pd.read_csv(self.hierarchy_label_root)
         new_col_ids = []
@@ -31,11 +30,17 @@ class HierarchialDataloader(Dataset):
             col_id = "{0}_id".format(col)
             new_col_ids.append(col_id)
             data[col_id] = data[col].astype("category").cat.codes #Dùng để đổi các field từ text sang integer
-        class_to_idx = defaultdict(list)
         
-        for _, row in data.iterrows():
-            for col_id in new_col_ids:
-                class_to_idx[row["Original_Class"]].append(row[col_id])
+        # class_to_idx = defaultdict(list)
+        # for _, row in data.iterrows():
+        #     for col_id in new_col_ids:
+        #         class_to_idx[row["Original_Class"]].append(row[col_id])
+        class_to_idx = (
+            data
+            .set_index("Original_Class")[new_col_ids] #Lấy Original Class làm index 
+            .apply(list, axis=1) #Biến từng dòng một thành list
+            .to_dict() #Chuyển thành dict
+        ) #Cách này nhanh hơn
         return class_to_idx
     
     def Get_Samples(self):
@@ -52,10 +57,12 @@ class HierarchialDataloader(Dataset):
         arr = np.array(labels)
         num_of_class_sample_per_hierarchy = [len(np.unique(arr[:, i])) for i in range(arr.shape[1])] 
         text = []
+        num_classes = dict()
         for hier, num in zip(self.hierarchy_columns, num_of_class_sample_per_hierarchy):
+            num_classes[hier] = num #Tạo num_classes để về sau không cần tạo thủ công
             text.append("{0} {1}".format(str(num), hier))
         print("Found {0} images belong to {1}".format(len(samples),", ".join(text)))
-        return samples
+        return samples, num_classes
     
     def train_transform(self):
         if self.transform:
@@ -146,6 +153,7 @@ class DatasetLoader():
                 img_size=self.img_size,
                 transform=self.transform
             )
+            self.num_classes = train_dataset.num_classes
             # print("Total train image: {0}, train mask: {1}".format(len(train_dataset), len(train_dataset)))
             loader = DataLoader(
                 train_dataset,
@@ -167,6 +175,7 @@ class DatasetLoader():
                 img_size=self.img_size,
                 transform=self.transform
             )
+            self.num_classes = test_dataset.num_classes
             # print("Total test image: {0}, train mask: {1}".format(len(test_dataset), len(test_dataset)))
             loader = DataLoader(
                 test_dataset,
@@ -177,7 +186,19 @@ class DatasetLoader():
                 persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
             )
         return loader
-    
+
+    def Create_Consistent_Matrix(self, device):
+        keys = list(self.num_classes.keys())
+        keys.reverse()
+        matrix_names = []
+        hier_matrixs = dict()
+        for i in range(len(keys) - 1):
+            matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
+            matrix_names.append(matrix_name)
+            hier_matrixs[matrix_name] = self.Create_Matrix(keys[i], keys[i + 1]).to(device)
+        return matrix_names, hier_matrixs
+
+
     #Tạo ma trận để tính loss, hiện tại chưa tìm ra cách tạo ma trận động nên đang làm thủ công
     def Create_Matrix(self, x, y):
         data = pd.read_csv(self.hierarchy_label_root)

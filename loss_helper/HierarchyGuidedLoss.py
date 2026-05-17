@@ -30,7 +30,7 @@ class HierarchyGuidedLoss(nn.Module):
         return loss, total_class_loss
     
     def compute_consistent_loss(self, logits, hier_matrixs):
-        consistency_loss = torch.tensor(0.0, device="cuda")
+        consistency_loss = torch.tensor(0.0, device=logits.device)
         loss = dict()
         for key in hier_matrixs.keys():
             x_name, y_name = key.split("2")

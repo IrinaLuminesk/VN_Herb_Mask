@@ -23,8 +23,8 @@ import torch.optim as optim
 
 from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
-num_classes = {'Species':200 , 'Genus': 125, 'Family': 36, 'Order': 13}
-consistent_list = ["Order2Family", "Family2Genus", "Genus2Species"]
+# num_classes = {'Species':200 , 'Genus': 125, 'Family': 36, 'Order': 13}
+# consistent_list = ["Order2Family", "Family2Genus", "Genus2Species"]
 def parse_args():
     parser = argparse.ArgumentParser(description="A simple argparse example")
     
@@ -50,7 +50,7 @@ def set_seed(seed=42):
 
 
 
-def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs):
+def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs, consistent_list):
     model.train()
     metrics = MetricCal_Hier(num_classes=num_classes,consistent_list=consistent_list , device=device)
     for inputs, targets in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
@@ -73,7 +73,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
                      type="soft" if batchWiseAug != None else "hard")
     return metrics
 
-def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
+def validate(epoch, end_epoch, model, loader, criterion, device, num_classes, consistent_list):
     model.eval()
     metrics = MetricCal_Hier(num_classes=num_classes, consistent_list=consistent_list, device=device)
     with torch.no_grad():
@@ -161,12 +161,14 @@ def main():
     training_loader = train_data.dataset_loader("train")
     testing_loader = test_data.dataset_loader("test")
 
-    hier_matrixs = dict()
-    keys = list(num_classes.keys())
-    keys.reverse()
-    for i in range(len(keys) - 1):
-        matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
-        hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1]).to(device)
+    num_classes = train_data.num_classes
+    consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix(device)
+    # hier_matrixs = dict()
+    # keys = list(num_classes.keys())
+    # keys.reverse()
+    # for i in range(len(keys) - 1):
+    #     matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
+    #     hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1]).to(device)
 
     batchWiseAug = None
     if enabled_batchwise_transform:
@@ -180,8 +182,6 @@ def main():
         num_classes=num_classes, 
         type="train", 
         enabled_batchwise_transform=enabled_batchwise_transform)
-    if enabled_batchwise_transform:
-        train_criterion = SoftTargetCrossEntropy()
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     if model_type not in [0]:
@@ -225,11 +225,12 @@ def main():
                                 optimizer=optimizer, 
                                 device=device,
                                 num_classes=num_classes, 
-                                hier_matrixs=hier_matrixs)
+                                hier_matrixs=hier_matrixs,
+                                consistent_list=consistent_list)
         train_loss, train_acc = train_metrics.overall_loss(weights=0.5), train_metrics.avg_accuracy("Species")
         scheduler.step()
         print()
-        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes)
+        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes, consistent_list=consistent_list)
         val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy("Species")
         print()
 
@@ -267,6 +268,19 @@ def main():
                 "train_MCC": train_metrics.MCC("Species"),
                 "train_FMI": train_metrics.FMI("Species"),
                 "train_Cohen_Kappa": train_metrics.cohen_kappa("Species"),
+            }
+            for key in num_classes.keys():
+                if key != "Species":
+                    metric_row.update({
+                        "train_acc": train_metrics.avg_accuracy(key),
+                        "train_precision": train_metrics.precision_macro(key),
+                        "train_recall": train_metrics.recall_macro(key),
+                        "train_f1": train_metrics.f1_macro(key), 
+                        "train_MCC": train_metrics.MCC(key),
+                        "train_FMI": train_metrics.FMI(key),
+                        "train_Cohen_Kappa": train_metrics.cohen_kappa(key)
+                    })
+            metric_row.update({
                 "val_loss": val_loss,
                 "val_acc": val_acc,
                 "val_precision": val_metrics.precision_macro("Species"),
@@ -275,7 +289,7 @@ def main():
                 "val_MCC": val_metrics.MCC("Species"),
                 "val_FMI": val_metrics.FMI("Species"),
                 "val_Cohen_Kappa": val_metrics.cohen_kappa("Species"),
-            }
+            })
             Saving_Metric3(epoch=epoch, metric_row=metric_row, path=metrics_path)
         if epochs_no_improve >= patience and early_stopping == True:
             print("Early stopping triggered at epoch {0}".format(epoch))

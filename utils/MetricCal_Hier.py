@@ -1,5 +1,6 @@
 import torch
-#Quên cái vụ Consistent loss có số loss ít hơn class, nên sửa lại
+#Quên cái vụ Consistent loss có số loss ít hơn class, nên sửa lại (Đã sửa)
+#Bữa nào rãnh viết lại cái reset cho tiết kiệm dung lượng
 class MetricCal_Hier():
     def __init__(self, num_classes, consistent_list, device) -> None:
         self.num_classes = num_classes #Dây là một dict
