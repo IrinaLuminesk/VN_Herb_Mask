@@ -24,7 +24,10 @@ class HierarchyGuidedLoss(nn.Module):
         loss = dict()
         for idx, key in enumerate(self.num_classes):
             logit = logits[key]
-            target = targets[:, idx]
+            if self.type == "train" and self.enabled_batchwise_transform == True:
+                target = targets[key]
+            else:
+                target = targets[:, idx]
             loss[key] = self.classification_loss[key](logit, target)
             total_class_loss += loss[key]
         return loss, total_class_loss

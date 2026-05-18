@@ -39,7 +39,7 @@ class MixUpHier(Transform):
         new_labels = dict()
         if labels.ndim == 2:
             for idx, key in enumerate(self.number_of_class.keys()):
-                one_hot_labels = F.one_hot(labels[:, idx], num_classes=self.number_of_class[key])
+                one_hot_labels = F.one_hot(labels[:, idx], num_classes=self.number_of_class[key]).float()
                 one_hot_labels = one_hot_labels.roll(1, 0).mul_(1.0 - lam).add_(one_hot_labels.mul(lam))
                 new_labels[key] = one_hot_labels
         return new_labels

@@ -105,7 +105,10 @@ class MetricCal_Hier():
                      targets, 
                      type="soft"):
         #Dùng để tính classification loss
-        batch_size = targets.size(0)
+        if type == "hard":
+            batch_size = targets.size(0)
+        else:
+            batch_size = next(iter(targets.values())).size(0)
 
 
         self.total_cls_loss += total_cls_loss.detach() * batch_size
@@ -117,7 +120,8 @@ class MetricCal_Hier():
             self.each_cls_loss[key] = each_cls_loss[key].detach() * batch_size
             if type == "soft":
                 pred_class[key] = outputs[key].argmax(dim=1)
-                true_class[key] = targets[:, index].argmax(dim=1)
+                # true_class[key] = targets[:, index].argmax(dim=1)
+                true_class[key] = targets[key].argmax(dim=1)
             else:
                 _, pred_class[key] = outputs[key].max(1)
                 true_class[key] = targets[:, index]

@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 
 #Hàm tự định nghĩa
-from aug_helper.BatchWiseAug import BatchWiseAug
+from aug_helper.Aug_Hier.BatchWiseAug import BatchWiseAug
 from loss_helper.HierarchyGuidedLoss import HierarchyGuidedLoss
 # from utils.MetricCal import MetricCal
 from utils.MetricCal_Hier import MetricCal_Hier
@@ -57,6 +57,8 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
                                 format(epoch, end_epoch)):
 
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+        if batchWiseAug != None:
+            inputs, targets= batchWiseAug(inputs, targets)
         optimizer.zero_grad()
         outputs = model(inputs)
         
