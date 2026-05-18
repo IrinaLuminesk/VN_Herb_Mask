@@ -172,7 +172,7 @@ def main():
 
     batchWiseAug = None
     if enabled_batchwise_transform:
-        batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
+        batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
     
     model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
@@ -259,29 +259,41 @@ def main():
         else:
             epochs_no_improve += 1
         if save_metrics:
+            #Lưu mấy cái loss chung của train trước
             metric_row = {
+                "train_overall_loss": train_loss,
                 "train_cls_loss": train_metrics.avg_cls_loss,
-                "train_acc": train_acc,
-                "train_precision": train_metrics.precision_macro("Species"),
-                "train_recall": train_metrics.recall_macro("Species"),
-                "train_f1": train_metrics.f1_macro("Species"), 
-                "train_MCC": train_metrics.MCC("Species"),
-                "train_FMI": train_metrics.FMI("Species"),
-                "train_Cohen_Kappa": train_metrics.cohen_kappa("Species"),
+                "train_consistent_loss": train_metrics.avg_consistent_loss
             }
+            #Lưu loss của từng phân cấp
             for key in num_classes.keys():
-                if key != "Species":
-                    metric_row.update({
-                        "train_acc": train_metrics.avg_accuracy(key),
-                        "train_precision": train_metrics.precision_macro(key),
-                        "train_recall": train_metrics.recall_macro(key),
-                        "train_f1": train_metrics.f1_macro(key), 
-                        "train_MCC": train_metrics.MCC(key),
-                        "train_FMI": train_metrics.FMI(key),
-                        "train_Cohen_Kappa": train_metrics.cohen_kappa(key)
-                    })
+                metric_row.update({
+                    f"train_cls_loss_{key}": train_metrics.avg_each_cls_loss(key)
+                })
+            for key in consistent_list:
+                metric_row.update({
+                    f"train_consistent_loss_{key}": train_metrics.avg_each_consistent_loss(key)
+                })
+            metric_row["val_loss"] = val_loss
+
+            for key in num_classes.keys():
+                metric_row.update({
+                    f"train_acc_{key}": train_metrics.avg_accuracy(key),
+                    # f"val_acc_{key}": val_metrics.avg_accuracy(key),
+                    f"train_precision_{key}": train_metrics.precision_macro(key),
+                    # f"val_precision_{key}": val_metrics.precision_macro(key),
+                    f"train_recall_{key}": train_metrics.recall_macro(key),
+                    # f"val_recall_{key}": val_metrics.recall_macro(key),
+                    f"train_f1_{key}": train_metrics.f1_macro(key), 
+                    # f"val_f1_{key}": val_metrics.f1_macro(key), 
+                    f"train_MCC_{key}": train_metrics.MCC(key),
+                    # f"val_MCC_{key}": val_metrics.MCC(key),
+                    f"train_FMI_{key}": train_metrics.FMI(key),
+                    # f"val_FMI_{key}": val_metrics.FMI(key),
+                    f"train_Cohen_Kappa_{key}": train_metrics.cohen_kappa(key)
+                    # f"val_Cohen_Kappa_{key}": val_metrics.cohen_kappa(key)
+                })
             metric_row.update({
-                "val_loss": val_loss,
                 "val_acc": val_acc,
                 "val_precision": val_metrics.precision_macro("Species"),
                 "val_recall": val_metrics.recall_macro("Species"),

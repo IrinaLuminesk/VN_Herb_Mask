@@ -1,8 +1,7 @@
 from torchvision.transforms import v2
-from aug_helper.CutMixMask import CutMixMask
-from aug_helper.FMix import FMix
-from aug_helper.FMixMask import FMixMask
-from aug_helper.MixUpMask import MixUpMask
+from aug_helper.Aug_Mask.CutMixMask import CutMixMask
+from aug_helper.Aug_Mask.FMixMask import FMixMask
+from aug_helper.Aug_Mask.MixUpMask import MixUpMask
 
 class BatchWiseAug:
     def __init__(self, config, num_classes):

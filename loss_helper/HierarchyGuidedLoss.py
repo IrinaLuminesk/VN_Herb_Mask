@@ -29,8 +29,8 @@ class HierarchyGuidedLoss(nn.Module):
             total_class_loss += loss[key]
         return loss, total_class_loss
     
-    def compute_consistent_loss(self, logits, hier_matrixs):
-        consistency_loss = torch.tensor(0.0, device=logits.device)
+    def compute_consistent_loss(self, logits, hier_matrixs, device):
+        consistency_loss = torch.tensor(0.0, device=device)
         loss = dict()
         for key in hier_matrixs.keys():
             x_name, y_name = key.split("2")
@@ -47,14 +47,15 @@ class HierarchyGuidedLoss(nn.Module):
         #hier_matrixs là một dict chứa thông tin liên hệ từng phân cấp
         #family -> genus
         #genus -> species
-
+        
         #each_classification_loss là một dict chứa các loss của từng cấp
         #classification_loss là loss đã cộng hết các cấp 
         each_classification_loss, classification_loss = self.compute_classification_loss(logits, targets)
 
         #each_consistent_loss là một dict chứa các loss của từng cấp
         #consistent_loss là loss đã cộng hết các cấp 
-        each_consistent_loss, consistent_loss = self.compute_consistent_loss(logits, hier_matrixs)
+        device = targets.device
+        each_consistent_loss, consistent_loss = self.compute_consistent_loss(logits, hier_matrixs, device)
 
         total_loss = classification_loss + 0.5 * consistent_loss
 
