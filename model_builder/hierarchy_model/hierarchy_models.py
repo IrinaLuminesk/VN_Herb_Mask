@@ -1,5 +1,7 @@
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50, ResNet50_Weights,\
+vgg16, VGG16_Weights, \
+inception_v3, Inception_V3_Weights
 import torch
 from attention_module.attention import Attention_Layer
 
@@ -49,6 +51,95 @@ class Resnet50_Hierarchy(nn.Module):
     def forward(self, x):
         x = self.model_input(x)
         x = self.attention_layer(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        logits_dict = dict()
+        for key, _ in self.num_classes.items():
+           logits_dict[key] = self.fc[key](x) 
+        return logits_dict
+    
+class VGG16_Hierarchy(nn.Module):
+    def __init__(self, num_classes, attention_layer_type, replace_relu=False):
+        super().__init__()
+        self.num_classes = num_classes #This is a dict
+        self.attention_layer_type = attention_layer_type
+        self.replace_relu = replace_relu
+        self.build_layers()
+    def build_layers(self):
+            vgg16_weights = VGG16_Weights.DEFAULT
+            backbone_model = vgg16(weights=vgg16_weights)
+
+            activation = nn.ReLU()
+            if self.replace_relu:
+                replace_relu_helper(backbone_model)
+                activation = nn.SiLU()
+                print("Replacing RELU with SILU")
+            
+            self.model_input = nn.Sequential(
+                *backbone_model.features[:30],
+                Attention_Layer(self.attention_layer_type, channels=512, replace_relu=self.replace_relu),
+                backbone_model.features[30]
+            )
+
+            # #Layer này sau layer 29 của vgg16
+            # self.attention_layer = Attention_Layer(self.attention_layer_type, channels=512, replace_relu=self.replace_relu)
+
+            self.avgpool = backbone_model.avgpool
+            self.fc = nn.ModuleDict()
+            for key, value in self.num_classes.items():
+                self.fc[key] = nn.Sequential(
+                     nn.Linear(25088, 1024),
+                     nn.BatchNorm1d(1024),
+                     activation,
+                     nn.Dropout(0.4),
+                     nn.Linear(1024, value),
+                )
+    def forward(self, x):
+        x = self.model_input(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        logits_dict = dict()
+        for key, _ in self.num_classes.items():
+           logits_dict[key] = self.fc[key](x) 
+        return logits_dict
+    
+class InceptionV3_Hierarchy(nn.Module):
+    def __init__(self, num_classes, attention_layer_type, replace_relu=False):
+        super().__init__()
+        self.num_classes = num_classes #This is a dict
+        self.attention_layer_type = attention_layer_type
+        self.replace_relu = replace_relu
+        self.build_layers()
+    def build_layers(self):
+            inception_v3_weight = Inception_V3_Weights.DEFAULT
+            backbone_model = inception_v3(weights=inception_v3_weight)
+
+            activation = nn.ReLU()
+            if self.replace_relu:
+                replace_relu_helper(backbone_model)
+                activation = nn.SiLU()
+                print("Replacing RELU with SILU")
+            
+            self.model_input = nn.Sequential(
+                *list(backbone_model.children())[:-3]
+            )
+
+            # #Layer này sau layer 4 của resnet50
+            # self.attention_layer = Attention_Layer(self.attention_layer_type, channels=2048, replace_relu=self.replace_relu)
+
+            self.avgpool = backbone_model.avgpool
+            self.fc = nn.ModuleDict()
+            for key, value in self.num_classes.items():
+                self.fc[key] = nn.Sequential(
+                     nn.Linear(2048, 1024),
+                     nn.BatchNorm1d(1024),
+                     activation,
+                     nn.Dropout(0.4),
+                     nn.Linear(1024, value),
+                )
+    def forward(self, x):
+        x = self.model_input(x)
+        # x = self.attention_layer(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         logits_dict = dict()

@@ -19,8 +19,8 @@ class HierarchyGuidedLoss(nn.Module):
             key: nn.CrossEntropyLoss()
             for key in self.num_classes
         }
-    def compute_classification_loss(self, logits, targets):
-        total_class_loss = torch.tensor(0.0, device=targets.device)
+    def compute_classification_loss(self, logits, targets, device):
+        total_class_loss = torch.tensor(0.0, device=device)
         loss = dict()
         for idx, key in enumerate(self.num_classes):
             logit = logits[key]
@@ -50,14 +50,16 @@ class HierarchyGuidedLoss(nn.Module):
         #hier_matrixs là một dict chứa thông tin liên hệ từng phân cấp
         #family -> genus
         #genus -> species
-        
+        if self.type == "train" and self.enabled_batchwise_transform == True:
+            device = next(iter(targets.values())).device
+        else:
+            device = targets.device
         #each_classification_loss là một dict chứa các loss của từng cấp
         #classification_loss là loss đã cộng hết các cấp 
-        each_classification_loss, classification_loss = self.compute_classification_loss(logits, targets)
+        each_classification_loss, classification_loss = self.compute_classification_loss(logits, targets, device)
 
         #each_consistent_loss là một dict chứa các loss của từng cấp
         #consistent_loss là loss đã cộng hết các cấp 
-        device = targets.device
         each_consistent_loss, consistent_loss = self.compute_consistent_loss(logits, hier_matrixs, device)
 
         total_loss = classification_loss + 0.5 * consistent_loss

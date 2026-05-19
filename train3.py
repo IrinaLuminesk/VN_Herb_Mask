@@ -12,7 +12,7 @@ from loss_helper.HierarchyGuidedLoss import HierarchyGuidedLoss
 from utils.MetricCal_Hier import MetricCal_Hier
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 # from model_builder.baseline import Model
-from model_builder.hierarchy_model.hierarchy_models import Resnet50_Hierarchy
+from model_builder.baseline_Hier import Model
 from dataset_helper.DatasetLoaderHierarchy import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
@@ -176,8 +176,8 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
-    
-    model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
+    model = Model(model_type=model_type, num_classes=num_classes)
+    # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
     train_criterion = HierarchyGuidedLoss(
