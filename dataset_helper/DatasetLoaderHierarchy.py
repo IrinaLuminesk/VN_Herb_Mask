@@ -36,7 +36,7 @@ class HierarchialDataloader(Dataset):
         #     for col_id in new_col_ids:
         #         class_to_idx[row["Original_Class"]].append(row[col_id])
         class_to_idx = (
-            data
+            data.assign(Original_Class=data["Original_Class"].astype(str)) #Để không bị lỗi type
             .set_index("Original_Class")[new_col_ids] #Lấy Original Class làm index 
             .apply(list, axis=1) #Biến từng dòng một thành list
             .to_dict() #Chuyển thành dict

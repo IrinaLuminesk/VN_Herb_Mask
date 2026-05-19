@@ -117,7 +117,7 @@ class MetricCal_Hier():
         pred_class = dict()
         true_class = dict()
         for index, key in enumerate(self.num_classes.keys()):
-            self.each_cls_loss[key] = each_cls_loss[key].detach() * batch_size
+            self.each_cls_loss[key] += each_cls_loss[key].detach() * batch_size
             if type == "soft":
                 pred_class[key] = outputs[key].argmax(dim=1)
                 # true_class[key] = targets[:, index].argmax(dim=1)
@@ -141,7 +141,7 @@ class MetricCal_Hier():
             self.fn_per_class[key] += cm.sum(dim=1) - cm.diag()
 
         for key in self.consistent_list:
-            self.each_consistent_loss[key] = each_consistent_loss[key].detach() * batch_size
+            self.each_consistent_loss[key] += each_consistent_loss[key].detach() * batch_size
 
         self.total += batch_size
 

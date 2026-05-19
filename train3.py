@@ -176,7 +176,7 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
-    model = Model(model_type=model_type, num_classes=num_classes)
+    model = Model(model_type=model_type, num_classes=num_classes).to(device)
     # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
