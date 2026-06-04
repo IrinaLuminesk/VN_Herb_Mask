@@ -1,3 +1,5 @@
+#Dùng riêng cho Hierarchy_Consistent
+
 import argparse
 import os
 import random

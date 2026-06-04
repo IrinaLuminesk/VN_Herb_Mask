@@ -1,3 +1,5 @@
+#Dùng riêng cho Mask
+
 import argparse
 import os
 import random

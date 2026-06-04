@@ -1,3 +1,5 @@
+#Dùng riêng cho Baseline
+
 import argparse
 import os
 import random
@@ -6,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 #Hàm tự định nghĩa
-from aug_helper.BatchWiseAug import BatchWiseAug
+from aug_helper.Aug_Mask.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV2 import MetricCalV2
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
