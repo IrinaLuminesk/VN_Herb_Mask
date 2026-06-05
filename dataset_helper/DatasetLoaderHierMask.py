@@ -1,3 +1,4 @@
+from torchvision import tv_tensors
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
@@ -7,28 +8,15 @@ from Utilities_class import ApplyToBoth, ApplyToImageOnly
 from pathlib import Path
 from PIL import Image
 import numpy as np
-from torchvision import tv_tensors
+import pandas as pd
 
-# class ApplyToImageOnly:
-#     def __init__(self, tf):
-#         self.tf = tf
-
-#     def __call__(self, img, mask):
-#         return self.tf(img), mask
-
-
-# class ApplyToBoth:
-#     def __init__(self, tf):
-#         self.tf = tf
-
-#     def __call__(self, img, mask):
-#         return self.tf(img, mask)
-
-#Cái mới nhất
-class ImageMaskFolder(Dataset):
-    def __init__(self, img_root, mask_root, std, mean, img_size, data_type, transform = True):
+class HierarchialMaskDataloader(Dataset):
+    def __init__(self, img_root, mask_root, hierarchy_label_root, hierarchy_columns, std, mean, img_size, data_type, transform = True):
+        super().__init__()
         self.img_root = Path(img_root)
         self.mask_root = Path(mask_root)
+        self.hierarchy_label_root = hierarchy_label_root
+        self.hierarchy_columns = hierarchy_columns 
         self.mean = mean
         self.std = std
         self.img_size = img_size
@@ -36,38 +24,57 @@ class ImageMaskFolder(Dataset):
         self.transform = transform
         self.data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
 
-        # Mimic ImageFolder indexing
         self.class_to_idx = self.Get_Class_idx()
-        self.samples = self.Get_Imgs_Masks_sample()
-    def align_img_mask_arrays(self, imgs, masks, fill=-1):
-        lookup = {guid: val for val, guid in masks}
-        return [lookup.get(guid, fill) for _, guid in imgs]
-
+        self.samples, self.num_classes = self.Get_Samples()
     def Get_Class_idx(self):
-        classes = sorted([d.name for d in self.img_root.iterdir() if d.is_dir()])
-        class_to_idx = {c: i for i, c in enumerate(classes)}
-
+        data = pd.read_csv(self.hierarchy_label_root)
+        new_col_ids = []
+        for col in self.hierarchy_columns:
+            col_id = "{0}_id".format(col)
+            new_col_ids.append(col_id)
+            data[col_id] = data[col].astype("category").cat.codes #Dùng để đổi các field từ text sang integer
+        
+        class_to_idx = (
+            data.assign(Original_Class=data["Original_Class"].astype(str)) #Để không bị lỗi type
+            .set_index("Original_Class")[new_col_ids] #Lấy Original Class làm index 
+            .apply(list, axis=1) #Biến từng dòng một thành list
+            .to_dict() #Chuyển thành dict
+        ) #Cách này nhanh hơn
         return class_to_idx
-    def Get_Imgs_Masks_sample(self):
-        samples = []
-        imgs = [(img, img.stem) for img in self.img_root.rglob("*") if img.is_file()] #(Đường dẫn, Guid)
-        masks = [(mask, mask.stem) for mask in self.mask_root.rglob("*") if mask.is_file()] #(Đường dẫn, Guid)
-        print("Found {0} images, {1} masks belong to {2} classes".format(len(imgs),
-                                                                        len(masks),
-                                                                        len(self.class_to_idx)))
-        masks = self.align_img_mask_arrays(imgs, masks, -1)
-        imgs = [i for i, _ in imgs]
+    
+    def Get_Samples(self):
+        #Tạo ra samples bao gồm đường dẫn tới ảnh và label, 
+        # Mỗi label là 1 array chứa các label của mỗi cấp từ thấp (Species) tới cao (Phylum)
+        # hoặc từ cao (Phylum) tới thấp (Species) tùy theo array hierarchy_columns
+        image_paths = []
+        mask_paths = []
+        labels = []
+        for img in self.img_root.rglob("*"):
+            if img.is_file():
+                image_paths.append(img)
+                labels.append(self.class_to_idx[img.parent.name])
 
-        for img, mask in zip(imgs, masks):
-            #Đường dẫn của ảnh và label
-            class_name = img.parent.name #Tên label
-            samples.append((img, mask, self.class_to_idx[class_name]))
-            #phần này đang tạo ra một list chứa tuples có 3 value là đường dẫn, mask và label. Nếu mask = -1 nghĩa là ảnh đó không có mask
-        return samples
+                relative_path = img.relative_to(self.img_root) 
 
+                mask_path = (self.mask_root / relative_path).with_suffix(".png")
+
+                mask_paths.append(mask_path if mask_path.exists() else -1)
+                #Lấy đường dẫn tương đối đến file đó, bỏ qua folder lớn nhất
+        samples = list(zip(image_paths, mask_paths, labels)) #Biến 2 arrays thành tuple dạng pairing element-wise
+        arr = np.array(labels)
+        num_of_class_sample_per_hierarchy = [len(np.unique(arr[:, i])) for i in range(arr.shape[1])] 
+        text = []
+        num_classes = dict()
+        for hier, num in zip(self.hierarchy_columns, num_of_class_sample_per_hierarchy):
+            num_classes[hier] = num #Tạo num_classes để về sau không cần tạo thủ công
+            text.append("{0} {1}".format(str(num), hier))
+        num_masks = sum(path != -1 for path in mask_paths)
+        print("Found {0} images and {1} masks belong to {2}".format(len(samples), num_masks, ", ".join(text)))
+        return samples, num_classes
+    
     def create_zeros_mask(self, height, width):
         return torch.zeros((height, width), dtype=torch.float32)
-
+    
     def train_transform(self):
         if self.transform:
             return v2.Compose([
@@ -129,6 +136,8 @@ class ImageMaskFolder(Dataset):
     def __getitem__(self, idx):
         img_path, mask_path, label = self.samples[idx]
 
+        label = torch.tensor(label, dtype=torch.long)
+        
         img = Image.open(img_path).convert("RGB")
         width, height = img.size #Đảo ngược lại do Pil trả về W, H không phải H, W như cv2
         if mask_path != -1:
@@ -150,12 +159,13 @@ class ImageMaskFolder(Dataset):
         img, mask = self.data_transform(img, mask)
 
         return img, mask, label, has_mask
-
-
+    
 class DatasetLoader():
-    def __init__(self, img_path, mask_path, std, mean, img_size, batch_size, transform = True) -> None:
+    def __init__(self, img_path, mask_path, hierarchy_label_root, hierarchy_columns, std, mean, img_size, batch_size, transform = True) -> None:
         self.img_path = img_path
         self.mask_path = mask_path
+        self.hierarchy_label_root = hierarchy_label_root
+        self.hierarchy_columns = hierarchy_columns
         self.std = std
         self.mean = mean
         self.img_size = img_size
@@ -164,15 +174,18 @@ class DatasetLoader():
 
     def dataset_loader(self, type):
         if type == "train":
-            train_dataset = ImageMaskFolder(
+            train_dataset = HierarchialMaskDataloader(
                 img_root=self.img_path,
                 mask_root=self.mask_path,
+                hierarchy_label_root=self.hierarchy_label_root,
+                hierarchy_columns=self.hierarchy_columns,
                 data_type=type,
                 std=self.std,
                 mean=self.mean,
                 img_size=self.img_size,
                 transform=self.transform
             )
+            self.num_classes = train_dataset.num_classes
             # print("Total train image: {0}, train mask: {1}".format(len(train_dataset), len(train_dataset)))
             loader = DataLoader(
                 train_dataset,
@@ -184,15 +197,18 @@ class DatasetLoader():
                 prefetch_factor=2
             )
         else:
-            test_dataset = ImageMaskFolder(
+            test_dataset = HierarchialMaskDataloader(
                 img_root=self.img_path,
                 mask_root=self.mask_path,
+                hierarchy_label_root=self.hierarchy_label_root,
+                hierarchy_columns=self.hierarchy_columns,
                 data_type=type,
                 std=self.std,
                 mean=self.mean,
                 img_size=self.img_size,
                 transform=self.transform
             )
+            self.num_classes = test_dataset.num_classes
             # print("Total test image: {0}, train mask: {1}".format(len(test_dataset), len(test_dataset)))
             loader = DataLoader(
                 test_dataset,
@@ -203,4 +219,62 @@ class DatasetLoader():
                 persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
             )
         return loader
+
+    def Create_Consistent_Matrix(self, device):
+        keys = list(self.num_classes.keys())
+        keys.reverse()
+        matrix_names = []
+        hier_matrixs = dict()
+        for i in range(len(keys) - 1):
+            matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
+            matrix_names.append(matrix_name)
+            hier_matrixs[matrix_name] = self.Create_Matrix(keys[i], keys[i + 1]).to(device)
+        return matrix_names, hier_matrixs
+
+
+    #Tạo ma trận để tính loss, hiện tại chưa tìm ra cách tạo ma trận động nên đang làm thủ công
+    def Create_Matrix(self, x, y):
+        data = pd.read_csv(self.hierarchy_label_root)
+        x_cat = data[x].astype("category")
+        y_cat = data[y].astype("category")
+
+        x2idx = {
+            cat: idx
+            for idx, cat in enumerate(x_cat.cat.categories)
+        }
+        y2idx = {
+            cat: idx
+            for idx, cat in enumerate(y_cat.cat.categories)
+        }
+
+        H_xy = torch.zeros(len(x2idx),len(y2idx))
+
+        xy_pairs = data[[x, y]].drop_duplicates()
         
+        for _, row in xy_pairs.iterrows():
+            x_idx = x2idx[row[x]]
+            y_idx = y2idx[row[y]]
+            H_xy[x_idx, y_idx] = 1
+        return H_xy
+
+
+        # x_to_y_dict = self.Create_x_to_y_dict(data, x, y)
+        # x_idx = {g:i for i, g in enumerate(data[x].unique())}
+        # y_idx = {g:i for i, g in enumerate(data[y].unique())}
+        # x_to_y_idx = {
+        #     x_idx[x]: y_idx[y]
+        #     for x, y in x_to_y_dict.items()
+        # }
+        # H_yx = torch.zeros(len(y_idx), len(x_idx))
+
+        # # fill y → x
+        # for x, y in x_to_y_idx.items():
+        #     H_yx[y, x] = 1
+        # return H_yx
+    def Create_x_to_y_dict(self, data, x, y):
+        return (
+            data[[x, y]]
+            .drop_duplicates()
+            .set_index(x)[y]
+            .to_dict()
+        )

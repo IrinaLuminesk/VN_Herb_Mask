@@ -1,4 +1,4 @@
-#Dùng riêng cho Hierarchy_Consistent
+# Dùng riêng cho việc kết hợp Mask và Hier
 
 import argparse
 import os
