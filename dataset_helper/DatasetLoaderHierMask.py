@@ -144,6 +144,12 @@ class HierarchialMaskDataloader(Dataset):
             mask = Image.open(mask_path).convert("L")  # binary
             mask = torch.from_numpy(np.array(mask))    # uint8 {0,255}
             mask = (mask > 0).float()
+            mask = F.max_pool2d(
+                    mask.unsqueeze(0).unsqueeze(0),
+                    kernel_size=15,
+                    stride=1,
+                    padding=7
+            ).squeeze(0).squeeze(0)
             has_mask = True 
             if not mask.any(): #Trường hợp có mask nhưng mask không có gì
                 has_mask = False

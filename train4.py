@@ -15,7 +15,7 @@ from utils.MetricCal_Hier import MetricCal_Hier
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 # from model_builder.baseline import Model
 from model_builder.baseline_Hier import Model
-from dataset_helper.DatasetLoaderHierarchy import DatasetLoader
+from dataset_helper.DatasetLoaderHierMask import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
 
@@ -98,6 +98,8 @@ def main():
     root_path = config["DATASET"]["ROOT_FOLDER"]
     train_path = config["DATASET"]["TRAIN_FOLDER"]
     test_path = config["DATASET"]["TEST_FOLDER"]
+    train_mask_path = config["DATASET"]["TRAIN_MASK_FOLDER"]
+    test_mask_path = config["DATASET"]["TEST_MASK_FOLDER"]
     hierarchy_label_root = config["DATASET"]["HIERARCHY_LABEL_ROOT"]
     hierarchy_columns = config["DATASET"]["HIERARCHY_COLUMNS"]
     CLASSES = sorted([i for i in os.listdir(root_path)])
@@ -142,6 +144,7 @@ def main():
     
     train_data = DatasetLoader(
         img_path=train_path,
+        mask_path=train_mask_path,
         hierarchy_label_root=hierarchy_label_root,
         hierarchy_columns= hierarchy_columns,
         std=std,
@@ -153,6 +156,7 @@ def main():
 
     test_data = DatasetLoader(
         img_path=test_path,
+        mask_path=test_mask_path,
         hierarchy_label_root=hierarchy_label_root,
         hierarchy_columns= hierarchy_columns,
         std=std,
@@ -166,12 +170,7 @@ def main():
 
     num_classes = train_data.num_classes
     consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix(device)
-    # hier_matrixs = dict()
-    # keys = list(num_classes.keys())
-    # keys.reverse()
-    # for i in range(len(keys) - 1):
-    #     matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
-    #     hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1]).to(device)
+  
 
     batchWiseAug = None
     if enabled_batchwise_transform:

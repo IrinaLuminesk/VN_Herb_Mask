@@ -7,12 +7,18 @@ from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 from monai.losses.tversky import TverskyLoss
 
-# device='cuda' if torch.cuda.is_available() else 'cpu'
-
-class SaliencyGuidedLoss(nn.Module):
-    def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
-        super(SaliencyGuidedLoss, self).__init__()
-
+class HierarchySaliencyGuidedLoss(nn.Module):
+    def __init__(self, 
+                 num_classes,
+                 type, 
+                 enabled_batchwise_transform=False, 
+                 #Dùng cho Saliency
+                 alpha=1.0, 
+                 beta=1.0, 
+                 gamma=1.0, 
+                 delta=1.0):
+        super().__init__()
+        self.num_classes = num_classes
         self.type = type
         self.enabled_batchwise_transform = enabled_batchwise_transform
         self.alpha = alpha
@@ -45,9 +51,15 @@ class SaliencyGuidedLoss(nn.Module):
         )
     def loss_builder(self):
         if self.type == "train" and self.enabled_batchwise_transform == True:
-                return SoftTargetCrossEntropy()
-        return nn.CrossEntropyLoss()
-
+            return {
+                key: SoftTargetCrossEntropy()
+                for key in self.num_classes
+            }
+        return {
+            key: nn.CrossEntropyLoss()
+            for key in self.num_classes
+        }
+    
     def create_attention_map(self, feature_maps, binary_masks):
         # Attention map
         # attention_map = torch.mean(feature_maps, dim=1, keepdim=True)
@@ -65,9 +77,7 @@ class SaliencyGuidedLoss(nn.Module):
             attention_map[valid_idx],
             binary_masks[valid_idx])
         return loss
-    def log_cosh(self, x):
-        return torch.log(torch.cosh(x).clamp(min=1e-12))
-
+    
     def compute_tversky_loss(self, attention_map, binary_masks, valid_idx):
         loss = self.tversky_loss(
             attention_map[valid_idx],
@@ -75,48 +85,15 @@ class SaliencyGuidedLoss(nn.Module):
         )
         return loss
     
-    def compute_tv_loss(self, attention_map):
-        """
-        attention_map: [B, 1, H, W] (logits)
-        """
-        # Convert logits → probabilities (stabilizes TV)
-        attn = torch.sigmoid(attention_map)
-
-        # Vertical differences
-        diff_h = torch.abs(attn[:, :, 1:, :] - attn[:, :, :-1, :])
-
-        # Horizontal differences
-        diff_w = torch.abs(attn[:, :, :, 1:] - attn[:, :, :, :-1])
-
-        # Normalize by total number of elements
-        tv_loss = (diff_h.sum() + diff_w.sum()) / attn.numel()
-
-        return tv_loss
-
-    def forward(self, pred, target, feature_maps, binary_masks, has_masks, epoch):
-        # 1. Standard Classification Loss
-        cls_loss = self.classification_loss(pred, target)
-
-        #create attention map
-        attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
-
-        device = pred.device
-        valid_idx = has_masks.bool()
-        if valid_idx.any():
-
-        
-            sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, valid_idx)
-
-            
-            tversky_loss = self.compute_tversky_loss(attention_map, binary_masks, valid_idx)
-
-        else:
-            sigmoid_fc_loss = torch.zeros((), device=device)
-            tversky_loss = torch.zeros((), device=device)
-
-        tv_loss = self.compute_tv_loss(attention_map)
-
-        total_loss = self.alpha * cls_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss + self.delta * tv_loss 
-
-        return total_loss, cls_loss, sigmoid_fc_loss, tversky_loss, tv_loss
-    
+    def compute_classification_loss(self, logits, targets, device):
+        total_class_loss = torch.tensor(0.0, device=device)
+        loss = dict()
+        for idx, key in enumerate(self.num_classes):
+            logit = logits[key]
+            if self.type == "train" and self.enabled_batchwise_transform == True:
+                target = targets[key]
+            else:
+                target = targets[:, idx]
+            loss[key] = self.classification_loss[key](logit, target)
+            total_class_loss += loss[key]
+        return loss, total_class_loss
