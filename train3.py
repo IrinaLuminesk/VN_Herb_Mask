@@ -165,13 +165,7 @@ def main():
     testing_loader = test_data.dataset_loader("test")
 
     num_classes = train_data.num_classes
-    consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix(device)
-    # hier_matrixs = dict()
-    # keys = list(num_classes.keys())
-    # keys.reverse()
-    # for i in range(len(keys) - 1):
-    #     matrix_name = "{0}2{1}".format(keys[i], keys[i + 1])
-    #     hier_matrixs[matrix_name] = train_data.Create_Matrix(keys[i], keys[i + 1]).to(device)
+    consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix2(device)
 
     batchWiseAug = None
     if enabled_batchwise_transform:
