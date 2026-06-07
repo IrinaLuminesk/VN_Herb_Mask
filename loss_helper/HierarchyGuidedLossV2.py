@@ -48,7 +48,7 @@ class HierarchyGuidedLossV2(nn.Module):
             x_name, y_name = key.split("2")
             x = torch.softmax(logits[x_name], dim=1)
             y = torch.softmax(logits[y_name], dim=1)
-            loss_xy = loss[key] = self.consistency_loss(x, y * hier_matrixs[key])
+            loss_xy = loss[key] = self.consistency_loss(x.log(), y @ hier_matrixs[key])
             consistency_loss += loss_xy
         return loss, consistency_loss
     
