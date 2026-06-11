@@ -1,6 +1,7 @@
 from torchvision import tv_tensors
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
+import torch.nn.functional as F
 import torch
 
 from Utilities_class import ApplyToBoth, ApplyToImageOnly

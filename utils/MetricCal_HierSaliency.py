@@ -1,7 +1,7 @@
 import torch
 #Quên cái vụ Consistent loss có số loss ít hơn class, nên sửa lại (Đã sửa)
 #Bữa nào rãnh viết lại cái reset cho tiết kiệm dung lượng
-class MetricCal_Hier():
+class MetricCal_HierSaliency():
     def __init__(self, num_classes, consistent_list, device) -> None:
         self.num_classes = num_classes #Dây là một dict
         self.consistent_list = consistent_list #Đây là một list, số lượng của nó = len(num_classes) - 1
@@ -14,6 +14,9 @@ class MetricCal_Hier():
             for key in self.num_classes.keys()
         } #Lưu loss của từng cấp
         
+        self.total_focal_loss = torch.zeros(1, device=self.device)
+        self.total_tversky_loss = torch.zeros(1, device=self.device)
+        self.total_focal_tversky = torch.zeros(1, device=self.device)
         
         self.total_consistent_loss = torch.zeros(1, device=self.device)
         self.each_consistent_loss = {
@@ -102,8 +105,11 @@ class MetricCal_Hier():
                      total_cls_loss, 
                      each_consistent_loss, 
                      total_consistent_loss, 
+                     focal_loss, 
+                     tversky_loss,
                      outputs, 
-                     targets, 
+                     targets,
+                     has_masks, 
                      type="soft"):
         #Dùng để tính classification loss
         if type == "hard":
@@ -115,6 +121,11 @@ class MetricCal_Hier():
         self.total_cls_loss += total_cls_loss.detach() * batch_size
         self.total_consistent_loss += total_consistent_loss.detach() * batch_size
         
+        valid_count = has_masks.sum()
+        self.total_focal_tversky += valid_count
+        self.total_focal_loss  += focal_loss.detach() * valid_count
+        self.total_tversky_loss += tversky_loss.detach() * valid_count
+
         pred_class = dict()
         true_class = dict()
         for index, key in enumerate(self.num_classes.keys()):
@@ -157,14 +168,22 @@ class MetricCal_Hier():
         return (self.each_cls_loss[key] / self.total).item() if self.total > 0 else 0.0
 
     @property
+    def avg_focal_loss(self):
+        return (self.total_focal_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
+
+    @property
+    def avg_tversky_loss(self):
+        return (self.total_tversky_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
+
+    @property
     def avg_consistent_loss(self):
         return (self.total_consistent_loss / self.total).item() if self.total > 0 else 0.0
    
     def avg_each_consistent_loss(self, key):
         return (self.each_consistent_loss[key] / self.total).item() if self.total > 0 else 0.0
 
-    def overall_loss(self, weights):
-        loss = self.avg_cls_loss + weights * self.avg_consistent_loss
+    def overall_loss(self, alpha, beta, delta, gamma):
+        loss = alpha * self.avg_cls_loss + beta * self.avg_focal_loss + delta * self.avg_focal_loss + gamma * self.avg_tversky_loss
         return loss
 
     def avg_accuracy(self, key):

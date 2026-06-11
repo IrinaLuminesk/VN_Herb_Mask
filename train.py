@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 #Hàm tự định nghĩa
-from aug_helper.Aug_Mask import BatchWiseAug
+from aug_helper.Aug_Mask.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV3 import MetricCalV3
 from learning_rate_helper.learning_rate import PiecewiseScheduler

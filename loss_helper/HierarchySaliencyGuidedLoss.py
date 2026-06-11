@@ -49,6 +49,9 @@ class HierarchySaliencyGuidedLoss(nn.Module):
             smooth_dr=1e-5,
             reduction="mean"
         )
+        self.consistency_loss = nn.KLDivLoss(
+            reduction="batchmean"
+        )
     def loss_builder(self):
         if self.type == "train" and self.enabled_batchwise_transform == True:
             return {
@@ -97,3 +100,61 @@ class HierarchySaliencyGuidedLoss(nn.Module):
             loss[key] = self.classification_loss[key](logit, target)
             total_class_loss += loss[key]
         return loss, total_class_loss
+    
+    def compute_consistent_loss(self, logits, hier_matrixs, device):
+        consistency_loss = torch.tensor(0.0, device=device)
+        loss = dict()
+        for key in hier_matrixs.keys():
+            x_name, y_name = key.split("2")
+            x = torch.softmax(logits[x_name], dim=1)
+            y = torch.softmax(logits[y_name], dim=1)
+            loss_xy = loss[key] = self.consistency_loss(x.log(), y @ hier_matrixs[key])
+            consistency_loss += loss_xy
+        return loss, consistency_loss
+    
+    def forward(self, logits, targets, feature_maps, binary_masks, has_masks, hier_matrixs):
+        #Logits là một dict chứa các phân cấp, 
+        #target là một batch chứa các array của từng phân cấp
+        #hier_matrixs là một dict chứa thông tin liên hệ từng phân cấp
+        #family -> genus
+        #genus -> species
+        if self.type == "train" and self.enabled_batchwise_transform == True:
+            device = next(iter(targets.values())).device
+        else:
+            device = targets.device
+
+        # 1. Standard Classification Loss
+        #each_classification_loss là một dict chứa các loss của từng cấp
+        #classification_loss là loss đã cộng hết các cấp 
+        each_classification_loss, classification_loss = self.compute_classification_loss(logits, targets, device)
+
+        #each_consistent_loss là một dict chứa các loss của từng cấp
+        #consistent_loss là loss đã cộng hết các cấp 
+        each_consistent_loss, consistent_loss = self.compute_consistent_loss(logits, hier_matrixs, device)
+
+        #create attention map
+        attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
+
+        valid_idx = has_masks.bool()
+        if valid_idx.any():
+
+        
+            sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, valid_idx)
+
+            
+            tversky_loss = self.compute_tversky_loss(attention_map, binary_masks, valid_idx)
+
+        else:
+            sigmoid_fc_loss = torch.zeros((), device=device)
+            tversky_loss = torch.zeros((), device=device)
+
+
+        total_loss = self.alpha * classification_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss + self.delta * consistent_loss 
+
+        return (classification_loss, 
+                each_classification_loss, 
+                consistent_loss, 
+                each_consistent_loss, 
+                sigmoid_fc_loss, 
+                tversky_loss,
+                total_loss)

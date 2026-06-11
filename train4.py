@@ -8,10 +8,10 @@ import numpy as np
 from tqdm import tqdm
 
 #Hàm tự định nghĩa
-from aug_helper.Aug_Hier.BatchWiseAug import BatchWiseAug
-from loss_helper.HierarchyGuidedLoss import HierarchyGuidedLoss
+from aug_helper.Aug_Hier_Saliency.BatchWiseAug import BatchWiseAug
+from loss_helper.HierarchySaliencyGuidedLoss import HierarchySaliencyGuidedLoss
 # from utils.MetricCal import MetricCal
-from utils.MetricCal_Hier import MetricCal_Hier
+from utils.MetricCal_HierSaliency import MetricCal_HierSaliency
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
 # from model_builder.baseline import Model
 from model_builder.baseline_Hier import Model
@@ -49,28 +49,43 @@ def set_seed(seed=42):
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
+def hook_fn(module, input, output):
+    # features.append(output)
+    module.feature_maps = output
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs, consistent_list):
     model.train()
-    metrics = MetricCal_Hier(num_classes=num_classes,consistent_list=consistent_list , device=device)
-    for inputs, targets in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
+    metrics = MetricCal_HierSaliency(num_classes=num_classes,consistent_list=consistent_list , device=device)
+    for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+        masks = masks.to(device, non_blocking=True)
         if batchWiseAug != None:
-            inputs, targets= batchWiseAug(inputs, targets)
+            inputs, masks, targets, has_masks = batchWiseAug(inputs, masks, targets)
+        has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
         outputs = model(inputs)
+        feature_maps = model.get_feature_maps()
         
-        classification_loss, each_classification_loss, consistent_loss, each_consistent_loss, total_loss = criterion(outputs, targets, hier_matrixs)
+        # classification_loss, each_classification_loss, consistent_loss, each_consistent_loss, total_loss = criterion(outputs, targets, hier_matrixs)
+        (classification_loss, 
+         each_classification_loss, 
+         consistent_loss, 
+         each_consistent_loss, 
+         sigmoid_fc_loss, 
+         tversky_loss,
+         total_loss) = criterion(outputs, targets, feature_maps, masks, has_masks, hier_matrixs)
         total_loss.backward()
         optimizer.step()
 
         metrics.update_train(each_cls_loss=each_classification_loss, 
                      total_cls_loss=classification_loss, 
                      each_consistent_loss=each_consistent_loss, 
-                     total_consistent_loss=consistent_loss, 
+                     total_consistent_loss=consistent_loss,
+                     focal_loss=sigmoid_fc_loss,
+                     tversky_loss=tversky_loss,
+                     has_masks=has_masks,
                      outputs=outputs, 
                      targets=targets, 
                      type="soft" if batchWiseAug != None else "hard")
@@ -78,9 +93,9 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes, consistent_list):
     model.eval()
-    metrics = MetricCal_Hier(num_classes=num_classes, consistent_list=consistent_list, device=device)
+    metrics = MetricCal_HierSaliency(num_classes=num_classes, consistent_list=consistent_list, device=device)
     with torch.no_grad():
-        for inputs, targets in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
+        for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
             inputs, targets = inputs.to(device), targets.to(device)
             targets = targets[:,0]
@@ -178,9 +193,10 @@ def main():
 
     model = Model(model_type=model_type, num_classes=num_classes).to(device)
     # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
+    hook_handle = model.register_hook(hook_fn)
 
     eval_criterion = nn.CrossEntropyLoss()
-    train_criterion = HierarchyGuidedLoss(
+    train_criterion = HierarchySaliencyGuidedLoss(
         num_classes=num_classes, 
         type="train", 
         enabled_batchwise_transform=enabled_batchwise_transform)
@@ -229,10 +245,12 @@ def main():
                                 num_classes=num_classes, 
                                 hier_matrixs=hier_matrixs,
                                 consistent_list=consistent_list)
-        train_loss, train_acc = train_metrics.overall_loss(weights=0.5), train_metrics.avg_accuracy("Species")
+        train_loss, train_acc = train_metrics.overall_loss(alpha=1, beta=0.5, gamma=0.2,delta=0.5), train_metrics.avg_accuracy("Species")
         scheduler.step()
         print()
-        val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes, consistent_list=consistent_list)
+        hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
+        val_metrics = val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes, consistent_list=consistent_list)
+        hook_handle = model.register_hook(hook_fn)
         val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy("Species")
         print()
 
@@ -265,7 +283,10 @@ def main():
             metric_row = {
                 "train_overall_loss": train_loss,
                 "train_cls_loss": train_metrics.avg_cls_loss,
-                "train_consistent_loss": train_metrics.avg_consistent_loss
+                "train_consistent_loss": train_metrics.avg_consistent_loss,
+                "train_focal_loss": train_metrics.avg_focal_loss,
+                "train_tversky_loss": train_metrics.avg_tversky_loss
+
             }
             #Lưu loss của từng phân cấp
             for key in num_classes.keys():

@@ -18,5 +18,21 @@ class Model(nn.Module):
                 model = VGG16_Hierarchy(self.num_classes, 0, False)
                 print("Training on VGG16 architecture")
                 return model
+    def register_hook(self, hook_fn):
+        match self.model_type:
+            case 1:
+                self.model.layer4.feature_maps = None
+                hook_handle = self.model.layer4.register_forward_hook(hook_fn)
+                return hook_handle
+            case 2:
+                self.model.features.feature_maps = None
+                hook_handle = self.model.features.register_forward_hook(hook_fn)
+                return hook_handle
+    def get_feature_maps(self):
+        match self.model_type:
+            case 1:
+                return self.model.fusion.feature_maps
+            case 2:
+                return self.model.fusion.feature_maps
     def forward(self, x):
         return self.model(x)

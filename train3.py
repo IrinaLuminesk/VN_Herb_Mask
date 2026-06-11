@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 #Hàm tự định nghĩa
 from aug_helper.Aug_Hier.BatchWiseAug import BatchWiseAug
-from loss_helper.HierarchyGuidedLoss import HierarchyGuidedLoss
+from loss_helper.HierarchyGuidedLossV2 import HierarchyGuidedLossV2
 # from utils.MetricCal import MetricCal
 from utils.MetricCal_Hier import MetricCal_Hier
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
@@ -175,7 +175,7 @@ def main():
     # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
-    train_criterion = HierarchyGuidedLoss(
+    train_criterion = HierarchyGuidedLossV2(
         num_classes=num_classes, 
         type="train", 
         enabled_batchwise_transform=enabled_batchwise_transform)
