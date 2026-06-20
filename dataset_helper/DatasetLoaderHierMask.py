@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 import torch
 
-from Utilities_class import ApplyToBoth, ApplyToImageOnly
+from dataset_helper.Utilities_class import ApplyToBoth, ApplyToImageOnly
 
 from pathlib import Path
 from PIL import Image
@@ -237,7 +237,37 @@ class DatasetLoader():
             matrix_names.append(matrix_name)
             hier_matrixs[matrix_name] = self.Create_Matrix(keys[i], keys[i + 1]).to(device)
         return matrix_names, hier_matrixs
+    #Dùng cho 2 level xa nhau n level
+    def Create_Consistent_Matrix2(self, device):
+        matrix_names, hier_matrixs = self.Create_Consistent_Matrix(device)
 
+        for i in hier_matrixs:
+            hier_matrixs[i] = hier_matrixs[i].T
+
+        keys = list(self.num_classes.keys())
+        keys.reverse()
+        skip_level_matrix_names = []
+        #Tạo ra các pair xa nhau mà chưa có trong matrix_names và hier_matrixs
+        for i in range(0, len(keys)):
+            for j in range(i + 1, len(keys)):
+                key = keys[i] + "2" + keys[j]
+                if key not in matrix_names:
+                    skip_level_matrix_names.append(key)
+        
+        for i in skip_level_matrix_names:
+            start, end = i.split("2")
+            start_idx = keys.index(start)  # 0
+            end_idx = keys.index(end)      # 3
+            sublist = keys[start_idx:end_idx+1] 
+            pairs = [f"{sublist[i]}2{sublist[i+1]}" for i in range(len(sublist)-1)]
+            pairs = pairs[::-1]
+            result = hier_matrixs[pairs[0]]
+            for j in range(1, len(pairs)):
+                result @= hier_matrixs[pairs[j]]
+            hier_matrixs[i] = result
+        matrix_names.extend(skip_level_matrix_names)
+
+        return matrix_names, hier_matrixs
 
     #Tạo ma trận để tính loss, hiện tại chưa tìm ra cách tạo ma trận động nên đang làm thủ công
     def Create_Matrix(self, x, y):

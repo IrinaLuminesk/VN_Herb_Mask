@@ -114,9 +114,9 @@ class SaliencyGuidedLoss(nn.Module):
             sigmoid_fc_loss = torch.zeros((), device=device)
             tversky_loss = torch.zeros((), device=device)
 
-        tv_loss = self.compute_tv_loss(attention_map)
+        # tv_loss = self.compute_tv_loss(attention_map)
 
-        total_loss = self.alpha * cls_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss + self.delta * tv_loss 
+        total_loss = self.alpha * cls_loss + self.beta * sigmoid_fc_loss + self.gamma * tversky_loss
 
-        return total_loss, cls_loss, sigmoid_fc_loss, tversky_loss, tv_loss
+        return total_loss, cls_loss, sigmoid_fc_loss, tversky_loss
     

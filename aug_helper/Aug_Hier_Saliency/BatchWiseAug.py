@@ -25,9 +25,9 @@ class BatchWiseAug:
                 Augs.append(aug_fn())       # ← instantiated *only if enabled*
                 Probabilities.append(prob)
         return v2.RandomChoice(Augs, p=Probabilities)
-    def __call__(self, images, labels):
-        return self.forward(images=images, labels=labels)
+    def __call__(self, images, masks, labels):
+        return self.forward(images=images, masks=masks, labels=labels)
 
-    def forward(self, images, labels):
-        images, labels = self.onBatchAugs(images, labels)
-        return images, labels
+    def forward(self, images, masks, labels):
+        images, masks, labels, has_masks = self.onBatchAugs(images, masks, labels)
+        return images, masks, labels, has_masks

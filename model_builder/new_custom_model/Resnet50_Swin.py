@@ -50,7 +50,7 @@ class Resnet50_Swin(nn.Module):
             #Swin
             self.swin_layer = swin_model.features[7]
             self.adapt_cnn_2_Swin = CNNtoSwinAdapter(pool_layer=True, kernel_size=2) #Dùng để đổi [B, 16, 16, 1024] sang [B, 1024, 8, 8]
-            self.attention_layer2_branchB = Attention_Layer(self.attention_layer_type, channels=1024, replace_relu=self.replace_relu)
+            # self.attention_layer2_branchB = Attention_Layer(self.attention_layer_type, channels=1024, replace_relu=self.replace_relu)
             # self.BAM_layer2_branchB = BidirectionalAttentionModule(channels=1024, replace_relu=self.relu_replace)
 
 
@@ -96,11 +96,11 @@ class Resnet50_Swin(nn.Module):
         swin_branch = self.adapt_cnn_2_Swin(shared)  # BCHW -> BHWC
         swin_branch = self.swin_layer(swin_branch) #Output [B, 8, 8, 1024]
         swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous() #Output [B, 1024, 8, 8]
-        if self.attention_layer_type != 1:
-            swin_branch_aug = self.augment_feature(swin_branch)
-            swin_branch = self.attention_layer2_branchB(swin_branch, swin_branch_aug) #Output [B, 1024, 8, 8]
-        else:
-            swin_branch = self.attention_layer2_branchB(swin_branch)
+        # if self.attention_layer_type != 1:
+        #     swin_branch_aug = self.augment_feature(swin_branch)
+        #     swin_branch = self.attention_layer2_branchB(swin_branch, swin_branch_aug) #Output [B, 1024, 8, 8]
+        # else:
+        #     swin_branch = self.attention_layer2_branchB(swin_branch)
 
         Fused = self.fusion(resnet_branch, swin_branch)
         x = self.avgpool(Fused)

@@ -117,6 +117,8 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
+    attention_layer_type = int(config["TRAIN"]["TRAIN_PARA"]["ATTENTION_LAYER_TYPE"])
+    relu_replace = config["TRAIN"]["TRAIN_PARA"]["RELU_REPLACE"]
 
     #Learning_rate
     if model_type not in [0]:
@@ -171,7 +173,10 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
-    model = Model(model_type=model_type, num_classes=num_classes).to(device)
+    model = Model(model_type=model_type, 
+                  num_classes=num_classes, 
+                  attention_layer_type=attention_layer_type, 
+                  replace_relu=relu_replace).to(device)
     # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()

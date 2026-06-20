@@ -8,7 +8,7 @@ class MetricCalV3():
         self.total_cls_loss = torch.zeros(1, device=self.device)
         self.total_focal_loss = torch.zeros(1, device=self.device)
         self.total_tversky_loss = torch.zeros(1, device=self.device)
-        self.total_tv_loss = torch.zeros(1, device=self.device)
+        # self.total_tv_loss = torch.zeros(1, device=self.device)
         self.total_overall_loss = torch.zeros(1, device=self.device)
         
         self.correct = torch.zeros(1, device=self.device)
@@ -59,7 +59,7 @@ class MetricCalV3():
         self.fn_per_class += cm.sum(dim=1) - cm.diag()
 
     @torch.no_grad()
-    def update_train(self, cls_loss, focal_loss, tversky_loss, tv_loss, outputs, targets, has_masks, type="soft"):
+    def update_train(self, cls_loss, focal_loss, tversky_loss, outputs, targets, has_masks, type="soft"):
         #Dùng để tính classification loss
         batch_size = targets.size(0)
 
@@ -71,7 +71,7 @@ class MetricCalV3():
 
         self.total_focal_loss  += focal_loss.detach() * valid_count
         self.total_tversky_loss += tversky_loss.detach() * valid_count
-        self.total_tv_loss     += tv_loss.detach() * valid_count
+        # self.total_tv_loss     += tv_loss.detach() * valid_count
 
         self.total_focal_tversky += valid_count
 
@@ -114,9 +114,9 @@ class MetricCalV3():
     def avg_focal_loss(self):
         return (self.total_focal_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
 
-    @property
-    def avg_tv_loss(self):
-        return (self.total_tv_loss / self.total).item() if self.total > 0 else 0.0
+    # @property
+    # def avg_tv_loss(self):
+    #     return (self.total_tv_loss / self.total).item() if self.total > 0 else 0.0
     @property
     def avg_tversky_loss(self):
         return (self.total_tversky_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
@@ -126,7 +126,6 @@ class MetricCalV3():
             alpha * self.avg_cls_loss
             + beta * self.avg_focal_loss
             + gamma * self.avg_tversky_loss
-            + delta * self.avg_tv_loss
         )
 
     @property
