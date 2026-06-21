@@ -9,7 +9,7 @@ from monai.losses.tversky import TverskyLoss
 
 # device='cuda' if torch.cuda.is_available() else 'cpu'
 
-class SaliencyGuidedLoss(nn.Module):
+class SaliencyGuidedLossV2(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
         super(SaliencyGuidedLoss, self).__init__()
 

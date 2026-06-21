@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument(
     "--cfg",
     type=str,
-    default="config/DTLHerb_Hier_config.yaml",
+    default="config/DTLHerb_Hier_Mask_config.yaml",
     help="Config file used to train the model (default: config/default_config.yaml)"
     )
     args = parser.parse_args()
@@ -134,6 +134,8 @@ def main():
     patience = config["TRAIN"]["TRAIN_PARA"]["PATIENCE"]
     epochs_no_improve = 0
     model_type = int(config["TRAIN"]["TRAIN_PARA"]["MODEL_TYPE"])
+    attention_layer_type = int(config["TRAIN"]["TRAIN_PARA"]["ATTENTION_LAYER_TYPE"])
+    relu_replace = config["TRAIN"]["TRAIN_PARA"]["RELU_REPLACE"]
 
     #Learning_rate
     if model_type not in [0]:
@@ -148,7 +150,13 @@ def main():
     checkpoint_path = config["TRAIN"]["OPTIONAL"]["CHECKPOINT_PATH"]
     best_path = config["TRAIN"]["OPTIONAL"]["BEST_PATH"]
     metrics_path = config["TRAIN"]["OPTIONAL"]["METRICS_PATH"]
-    
+
+    #Loss weight
+    alpha = float(config["TRAIN"]["LOSS"]["ALPHA"]) #Dùng cho classification loss
+    beta = float(config["TRAIN"]["LOSS"]["BETA"]) #Dùng cho Sigmoid loss
+    gamma = float(config["TRAIN"]["LOSS"]["GAMMA"]) #Dùng cho Tverky loss
+    delta = float(config["TRAIN"]["LOSS"]["DELTA"]) #Dùng cho consistency loss
+
     set_seed()
     
     if mean is None or std is None:
@@ -184,14 +192,17 @@ def main():
     testing_loader = test_data.dataset_loader("test")
 
     num_classes = train_data.num_classes
-    consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix(device)
+    consistent_list, hier_matrixs = train_data.Create_Consistent_Matrix2(device)
   
 
     batchWiseAug = None
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
-    model = Model(model_type=model_type, num_classes=num_classes).to(device)
+    model = Model(model_type=model_type, 
+                  num_classes=num_classes, 
+                  attention_layer_type=attention_layer_type,
+                  replace_relu=relu_replace).to(device)
     # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
     hook_handle = model.register_hook(hook_fn)
 
@@ -199,7 +210,11 @@ def main():
     train_criterion = HierarchySaliencyGuidedLoss(
         num_classes=num_classes, 
         type="train", 
-        enabled_batchwise_transform=enabled_batchwise_transform)
+        enabled_batchwise_transform=enabled_batchwise_transform,
+        alpha=alpha,
+        beta=beta,
+        gamma=gamma,
+        delta=delta)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     if model_type not in [0]:
@@ -245,7 +260,7 @@ def main():
                                 num_classes=num_classes, 
                                 hier_matrixs=hier_matrixs,
                                 consistent_list=consistent_list)
-        train_loss, train_acc = train_metrics.overall_loss(alpha=1, beta=0.5, gamma=0.2,delta=0.5), train_metrics.avg_accuracy("Species")
+        train_loss, train_acc = train_metrics.overall_loss(alpha=alpha, beta=beta, gamma=gamma,delta=delta), train_metrics.avg_accuracy("Species")
         scheduler.step()
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train

@@ -15,7 +15,7 @@ from learning_rate_helper.learning_rate import PiecewiseScheduler
 from model_builder.modelV3 import Model
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
-from loss_helper.SaliencyGuidedLossV2 import SaliencyGuidedLoss
+from loss_helper.SaliencyGuidedLossV2 import SaliencyGuidedLossV2
 
 import torch
 import torch.nn as nn
@@ -198,7 +198,7 @@ def main():
     # train_criterion = nn.CrossEntropyLoss()
     # if enabled_batchwise_transform:
     #     train_criterion = SoftTargetCrossEntropy()
-    train_criterion = SaliencyGuidedLoss(type="train", 
+    train_criterion = SaliencyGuidedLossV2(type="train", 
                                          enabled_batchwise_transform=enabled_batchwise_transform, 
                                          alpha=alpha,
                                          beta=beta,
