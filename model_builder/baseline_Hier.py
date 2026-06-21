@@ -1,5 +1,7 @@
 import torch.nn as nn
 import torch.nn as nn
+from model_builder.hierarchy_model.Resnet50_Swin_Hier import Resnet50_Swin_Hier
+from model_builder.hierarchy_model.Xception_Swin_Hier import Xception_Swin_Hier
 
 from model_builder.hierarchy_model.hierarchy_models import Resnet50_Hierarchy, VGG16_Hierarchy   
 class Model(nn.Module):
@@ -20,6 +22,14 @@ class Model(nn.Module):
                 model = VGG16_Hierarchy(self.num_classes, self.attention_layer_type, self.replace_relu)
                 print("Training on VGG16 architecture")
                 return model
+            case 3: #Resnet Swin
+                model = Resnet50_Swin_Hier(self.num_classes, self.attention_layer_type, self.replace_relu)
+                print("Training on Resnet50 Swin Hier architecture")
+                return model
+            case 3: #Xception Swin
+                model = Xception_Swin_Hier(self.num_classes, self.attention_layer_type, self.replace_relu)
+                print("Training on Xception Swin Hier architecture")
+                return model
     def register_hook(self, hook_fn):
         match self.model_type:
             case 1:
@@ -30,11 +40,23 @@ class Model(nn.Module):
                 self.model.features.feature_maps = None
                 hook_handle = self.model.features.register_forward_hook(hook_fn)
                 return hook_handle
+            case 3:
+                self.model.fusion.feature_maps = None
+                hook_handle = self.model.fusion.register_forward_hook(hook_fn)
+                return hook_handle
+            case 4:
+                self.model.fusion.feature_maps = None
+                hook_handle = self.model.fusion.register_forward_hook(hook_fn)
+                return hook_handle
     def get_feature_maps(self):
         match self.model_type:
             case 1:
                 return self.model.model_input[7].feature_maps
             case 2:
+                return self.model.features.feature_maps
+            case 3:
+                return self.model.fusion.feature_maps
+            case 4:
                 return self.model.fusion.feature_maps
     def forward(self, x):
         return self.model(x)
