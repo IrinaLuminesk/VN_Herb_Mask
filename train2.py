@@ -12,7 +12,8 @@ from aug_helper.Aug_Mask.BatchWiseAug import BatchWiseAug
 # from utils.MetricCal import MetricCal
 from utils.MetricCalV2 import MetricCalV2
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
-from model_builder.baseline import Model
+# from model_builder.baseline import Model
+from model_builder.new_custom_model.Resnet50_Swin import Resnet50_Swin
 from dataset_helper.DatasetLoader import DatasetLoader
 from utils.Utilities import Get_Max_Acc, Loading_Checkpoint, Saving_Best, Saving_Checkpoint, Saving_Metric3, YAML_Reader, get_mean_std
 # from CBAM_Resnet import Model as CBAM_Resnet
@@ -156,7 +157,9 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=len(CLASSES))
 
-    model = Model(len(CLASSES), model_type).to(device)
+    # model = Model(len(CLASSES), model_type).to(device)
+    model = Resnet50_Swin(num_classes=len(CLASSES), 
+                          attention_layer_type=1, replace_relu=True).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
     train_criterion = nn.CrossEntropyLoss()
