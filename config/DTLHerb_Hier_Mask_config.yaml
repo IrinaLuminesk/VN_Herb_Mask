@@ -4,8 +4,8 @@ PRINT_FREQ: 1
 
 DATASET:
   DATASET_NAME: VNHerb-data
-  ROOT: "/content/dataset"
-  ROOT_FOLDER: "/content/dataset"
+  ROOT: "/content/train_ori"
+  ROOT_FOLDER: "/content/train_ori"
   TRAIN_FOLDER: "/content/train_ori"
   TEST_FOLDER: "/content/test_ori"
   TRAIN_MASK_FOLDER: "/content/train_mask"

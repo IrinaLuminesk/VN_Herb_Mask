@@ -160,7 +160,6 @@ def main():
     # model = Model(len(CLASSES), model_type).to(device)
     model = Resnet50_Swin(num_classes=len(CLASSES), 
                           attention_layer_type=1, replace_relu=True).to(device)
-
     eval_criterion = nn.CrossEntropyLoss()
     train_criterion = nn.CrossEntropyLoss()
     if enabled_batchwise_transform:

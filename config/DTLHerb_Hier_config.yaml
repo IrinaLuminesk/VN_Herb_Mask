@@ -4,12 +4,12 @@ PRINT_FREQ: 1
 
 DATASET:
   DATASET_NAME: VNHerb-data
-  ROOT: "/content/dataset"
-  ROOT_FOLDER: "/content/dataset"
+  ROOT: "/content/train_ori"
+  ROOT_FOLDER: "/content/train_ori"
   TRAIN_FOLDER: "/content/train_ori"
   TEST_FOLDER: "/content/test_ori"
   HIERARCHY_LABEL_ROOT: "/content/CUB200_Classes.csv"
-  HIERARCHY_COLUMNS: ["Species", "Genus", "Family", "Order"]
+  HIERARCHY_COLUMNS: ["Species", "Genus", "Family", "Order", "Class"]
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1
   SPLIT_RATIO: 0.7

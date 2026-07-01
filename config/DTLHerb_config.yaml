@@ -4,8 +4,8 @@ PRINT_FREQ: 1
 
 DATASET:
   DATASET_NAME: VNHerb-data
-  ROOT: "/content/dataset"
-  ROOT_FOLDER: "/content/dataset"
+  ROOT: "/content/train_ori"
+  ROOT_FOLDER: "/content/train_ori"
   TRAIN_FOLDER: "/content/train_ori"
   TEST_FOLDER: "/content/test_ori"
   TRAIN_MASK_FOLDER: "/content/train_mask"
@@ -32,7 +32,7 @@ TRAIN:
     STD:  [0.20152938, 0.20600946, 0.209565  ]
   TRAIN_PARA:
     MODEL_TYPE: 1 #{1: Resnet50, 2: Xception}
-    ATTENTION_LAYER_TYPE: 0
+    ATTENTION_LAYER_TYPE: 1
     BEGIN_EPOCH: 0
     END_EPOCH: 50
     LAST_EPOCH: 0

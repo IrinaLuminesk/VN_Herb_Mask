@@ -2,7 +2,7 @@ from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
 
-from Utilities_class import ApplyToBoth, ApplyToImageOnly
+from dataset_helper.Utilities_class import ApplyToBoth, ApplyToImageOnly
 
 from pathlib import Path
 from PIL import Image

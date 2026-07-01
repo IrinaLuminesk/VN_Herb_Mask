@@ -183,7 +183,7 @@ class MetricCal_HierSaliency():
         return (self.each_consistent_loss[key] / self.total).item() if self.total > 0 else 0.0
 
     def overall_loss(self, alpha, beta, delta, gamma):
-        loss = alpha * self.avg_cls_loss + beta * self.avg_focal_loss + delta * self.avg_focal_loss + gamma * self.avg_tversky_loss
+        loss = alpha * self.avg_cls_loss + beta * self.avg_focal_loss + delta * self.avg_tversky_loss + gamma * self.avg_consistent_loss
         return loss
 
     def avg_accuracy(self, key):
