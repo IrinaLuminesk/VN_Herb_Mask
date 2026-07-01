@@ -10,7 +10,7 @@ DATASET:
   TEST_FOLDER: "/content/test_ori"
   TRAIN_MASK_FOLDER: "/content/train_mask"
   TEST_MASK_FOLDER: "/content/test_mask"
-  HIERARCHY_LABEL_ROOT: "/content/CUB200_Classes.csv"
+  HIERARCHY_LABEL_ROOT: "/content/Data - Danh sách loài đã xác minh (Cập nhật).csv"
   HIERARCHY_COLUMNS: ["Species", "Genus", "Family", "Order", "Class"]
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1

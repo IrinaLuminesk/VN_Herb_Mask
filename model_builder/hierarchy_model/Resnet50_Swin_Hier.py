@@ -79,12 +79,12 @@ class Resnet50_Swin_Hier(nn.Module):
         x = self.layer1(x)
         x= self.layer2(x)
         #Layer này chia nhánh ra 2 nhánh, nhánh 1 vào layer4 gốc của Resnet và nhánh 2 vào stage 3 và 4 của Swin
-        shared = self.layer3(x) #(1024, 16, 16)
+        x = self.layer3(x) #(1024, 16, 16)
         if self.attention_layer_type != 1:
-            shared_aug = self.augment_feature(shared)
-            shared = self.attention_layer1(shared, shared_aug)
+            shared_aug = self.augment_feature(x)
+            shared = self.attention_layer1(x, shared_aug)
         else:
-            shared = self.attention_layer1(shared)
+            shared = self.attention_layer1(x)
 
         #Branch A
         resnet_branch = self.layer4(shared) #(2048, 8, 8)
@@ -96,7 +96,7 @@ class Resnet50_Swin_Hier(nn.Module):
 
 
         #Branch 2
-        swin_branch = self.adapt_cnn_2_Swin(shared)  # BCHW -> BHWC
+        swin_branch = self.adapt_cnn_2_Swin(x)  # BCHW -> BHWC
         swin_branch = self.swin_layer(swin_branch) #Output [B, 8, 8, 1024]
         swin_branch = swin_branch.permute(0, 3, 1, 2).contiguous() #Output [B, 1024, 8, 8]
         # if self.attention_layer_type != 1:

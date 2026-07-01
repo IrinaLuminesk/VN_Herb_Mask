@@ -8,7 +8,7 @@ DATASET:
   ROOT_FOLDER: "/content/train_ori"
   TRAIN_FOLDER: "/content/train_ori"
   TEST_FOLDER: "/content/test_ori"
-  HIERARCHY_LABEL_ROOT: "/content/CUB200_Classes.csv"
+  HIERARCHY_LABEL_ROOT: "/content/Data - Danh sách loài đã xác minh (Cập nhật).csv"
   HIERARCHY_COLUMNS: ["Species", "Genus", "Family", "Order", "Class"]
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1
@@ -58,7 +58,7 @@ TRAIN:
     CUTMIX: [TRUE, 0.5]
     MIXUP: [TRUE, 0.5]
     FMIX: [TRUE, 0.5]
-    ENABLED: FALSE
+    ENABLED: TRUE
   LEARNING_RATE:
     PieceWise:
       START_LR: 0.0001

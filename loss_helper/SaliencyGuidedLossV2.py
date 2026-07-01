@@ -11,7 +11,7 @@ from monai.losses.tversky import TverskyLoss
 
 class SaliencyGuidedLossV2(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
-        super(SaliencyGuidedLoss, self).__init__()
+        super(SaliencyGuidedLossV2, self).__init__()
 
         self.type = type
         self.enabled_batchwise_transform = enabled_batchwise_transform
