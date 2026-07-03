@@ -1,7 +1,7 @@
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
-
+from torchvision.transforms.functional import pil_to_tensor
 from dataset_helper.Utilities_class import ApplyToBoth, ApplyToImageOnly
 
 from pathlib import Path
@@ -35,6 +35,7 @@ class ImageMaskFolder(Dataset):
         self.img_size = img_size
         self.data_type = data_type
         self.transform = transform
+        self.zero_mask = self.create_zeros_mask(256, 256)
         self.data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
 
         # Mimic ImageFolder indexing
@@ -133,8 +134,10 @@ class ImageMaskFolder(Dataset):
         img = Image.open(img_path).convert("RGB")
         width, height = img.size #Đảo ngược lại do Pil trả về W, H không phải H, W như cv2
         if mask_path != -1:
-            mask = Image.open(mask_path).convert("L")  # binary
-            mask = torch.from_numpy(np.array(mask))    # uint8 {0,255}
+            # mask = Image.open(mask_path).convert("L")  # binary
+            # mask = torch.from_numpy(np.array(mask))    # uint8 {0,255}
+            # mask = (mask > 0).float()
+            mask = pil_to_tensor(Image.open(mask_path)).squeeze(0)
             mask = (mask > 0).float()
             mask = F.max_pool2d(
                     mask.unsqueeze(0).unsqueeze(0),
@@ -146,7 +149,8 @@ class ImageMaskFolder(Dataset):
             if not mask.any(): #Trường hợp có mask nhưng mask không có gì
                 has_mask = False
         else:
-            mask = self.create_zeros_mask(height, width)
+            # mask = self.create_zeros_mask(height, width)
+            mask = self.zero_mask
             has_mask = False
         img  = tv_tensors.Image(img)
         mask = mask.unsqueeze(0)
@@ -205,8 +209,8 @@ class DatasetLoader():
                 test_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
-                num_workers=2,          # START HERE
-                pin_memory=True,
+                num_workers=0,          # START HERE
+                pin_memory=False,
                 persistent_workers=False, #Chỉnh cái này thành False để tránh hết Ram
             )
         return loader

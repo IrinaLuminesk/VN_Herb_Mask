@@ -32,7 +32,7 @@ class Model(nn.Module):
     def register_hook(self, hook_fn):
         match self.model_type:
             case 1:
-                self.model.fusion.feature_maps = None
+                # self.model.fusion.feature_maps = None
                 hook_handle = self.model.fusion.register_forward_hook(hook_fn)
                 return hook_handle
             case 2:

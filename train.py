@@ -46,10 +46,11 @@ def set_seed(seed=42):
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-features = []
+features = {}
 def hook_fn(module, input, output):
     # features.append(output)
-    module.feature_maps = output
+    # module.feature_maps = output
+    features["feature_maps"] = output
 
 # feature_maps = None
 # def hook_fn(module, input, output):
@@ -59,6 +60,7 @@ def hook_fn(module, input, output):
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
     model.train()
     metrics = MetricCalV3(num_classes=num_classes, device=device)
+    print(len(model.model.fusion._forward_hooks))
     for inputs, masks, targets, has_masks in tqdm(loader, total=len(loader), desc="Training epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
 
@@ -71,7 +73,8 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         # features.clear()
         outputs = model(inputs)
         # feature_maps = features[0]
-        feature_maps = model.get_feature_maps()
+        # feature_maps = model.get_feature_maps()
+        feature_maps = features["feature_maps"]
         total_loss, cls_loss, focal_loss, tversky_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
         total_loss.backward()
         optimizer.step()
@@ -87,6 +90,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
 
 def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
     model.eval()
+    print(len(model.model.fusion._forward_hooks))
     metrics = MetricCalV3(num_classes=num_classes, device=device)
     with torch.no_grad():
         for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
@@ -238,6 +242,7 @@ def main():
         best_acc = Get_Max_Acc(metrics_path)
 
     for epoch in range(begin_epoch, end_epoch):
+
         train_metrics = train(epoch, 
                                 end_epoch, 
                                 batchWiseAug=batchWiseAug,
