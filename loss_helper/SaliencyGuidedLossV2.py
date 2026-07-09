@@ -7,7 +7,7 @@ from timm.loss.cross_entropy import SoftTargetCrossEntropy
 
 from monai.losses.tversky import TverskyLoss
 
-# device='cuda' if torch.cuda.is_available() else 'cpu'
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SaliencyGuidedLossV2(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
@@ -24,7 +24,7 @@ class SaliencyGuidedLossV2(nn.Module):
             out_channels=1,
             kernel_size=1,
             bias=False
-        ).to("cuda")
+        ).to(device)
         self.classification_loss = self.loss_builder()
         self.sigmoid_focal_loss = lambda logits, targets: sigmoid_focal_loss(
             logits, 
