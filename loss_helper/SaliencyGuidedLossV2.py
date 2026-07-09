@@ -60,18 +60,18 @@ class SaliencyGuidedLossV2(nn.Module):
             align_corners=False
         )
         return attention_map
-    def compute_sigmoid_focal_loss(self, attention_map, binary_masks, valid_idx):
+    def compute_sigmoid_focal_loss(self, attention_map, binary_masks):
         loss = self.sigmoid_focal_loss(
-            attention_map[valid_idx],
-            binary_masks[valid_idx])
+            attention_map,
+            binary_masks)
         return loss
     def log_cosh(self, x):
         return torch.log(torch.cosh(x).clamp(min=1e-12))
 
-    def compute_tversky_loss(self, attention_map, binary_masks, valid_idx):
+    def compute_tversky_loss(self, attention_map, binary_masks):
         loss = self.tversky_loss(
-            attention_map[valid_idx],
-            binary_masks[valid_idx].float()
+            attention_map,
+            binary_masks.float()
         )
         return loss
     
@@ -97,19 +97,25 @@ class SaliencyGuidedLossV2(nn.Module):
         # 1. Standard Classification Loss
         cls_loss = self.classification_loss(pred, target)
 
-        #create attention map
-        attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
+        # #create attention map
+        # attention_map = self.create_attention_map(feature_maps=feature_maps, binary_masks=binary_masks)
 
         device = pred.device
         valid_idx = has_masks.bool()
         if valid_idx.any():
+            # compute attention only for samples with masks
+            feature_maps_valid = feature_maps[valid_idx]               # [n_valid, C, Hf, Wf]
+            attention_valid = self.attention_head(feature_maps_valid)  # [n_valid,1,Ha,Wa]
 
-        
-            sigmoid_fc_loss = self.compute_sigmoid_focal_loss(attention_map, binary_masks, valid_idx)
+            # ensure masks have channel dim and downsample to attention map size with AREA (soft)
+            masks = binary_masks.unsqueeze(1) if binary_masks.dim() == 3 else binary_masks
+            masks_valid = masks[valid_idx].float()                     # [n_valid,1,Hm,Wm]
+            masks_small = F.interpolate(masks_valid, size=attention_valid.shape[2:], mode='area')
 
-            
-            tversky_loss = self.compute_tversky_loss(attention_map, binary_masks, valid_idx)
-
+            # move to same device
+            masks_small = masks_small.to(attention_valid.device)
+            sigmoid_fc_loss = self.sigmoid_focal_loss(attention_valid, masks_small)
+            tversky_loss = self.tversky_loss(attention_valid, masks_small)
         else:
             sigmoid_fc_loss = torch.zeros((), device=device)
             tversky_loss = torch.zeros((), device=device)
