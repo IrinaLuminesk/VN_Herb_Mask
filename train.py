@@ -218,7 +218,7 @@ def main():
                                          alpha=alpha,
                                          beta=beta,
                                          gamma=gamma,
-                                         delta=delta)
+                                         delta=delta).to(device=device)
     optimizer = optim.AdamW(model.parameters(), lr=Learning_rate_para["MAX_LR"], weight_decay=1e-2)
 
     # if model_type not in [8, 9]:
