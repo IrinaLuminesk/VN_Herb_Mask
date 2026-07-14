@@ -20,11 +20,15 @@ class SaliencyGuidedLossV2(nn.Module):
         self.gamma = gamma
         self.delta = delta
         # in_channels sẽ được hàm tự bỏ vào sau
-        self.attention_head = nn.LazyConv2d(
-            out_channels=1,
-            kernel_size=1,
-            bias=False
-        ).to(device)
+        # self.attention_head = nn.LazyConv2d(
+        #     out_channels=1,
+        #     kernel_size=1,
+        #     bias=False
+        # ).to(device)
+        self.channel_pool_groups = 64   # tune (e.g., 32, 64, 128)
+        self.pool_conv = nn.Conv2d(self.channel_pool_groups, 1, kernel_size=1, bias=False)
+        # (keep original attention_head if you wish to compare; you can keep both and switch via a flag)
+        self.use_fast_attention = True
         self.classification_loss = self.loss_builder()
         self.sigmoid_focal_loss = lambda logits, targets: sigmoid_focal_loss(
             logits, 
@@ -103,19 +107,35 @@ class SaliencyGuidedLossV2(nn.Module):
         device = pred.device
         valid_idx = has_masks.bool()
         if valid_idx.any():
-            # compute attention only for samples with masks
-            feature_maps_valid = feature_maps[valid_idx]               # [n_valid, C, Hf, Wf]
-            attention_valid = self.attention_head(feature_maps_valid)  # [n_valid,1,Ha,Wa]
+            # select valid indices once
+            ids = valid_idx.nonzero(as_tuple=True)[0]           # 1D indices
+            # ensure tensors on device (avoid copies inside hot loop)
+            fm_valid = feature_maps.index_select(0, ids).to(device, non_blocking=True)
 
-            # ensure masks have channel dim and downsample to attention map size with AREA (soft)
-            masks = binary_masks.unsqueeze(1) if binary_masks.dim() == 3 else binary_masks
-            masks_valid = masks[valid_idx].float()                     # [n_valid,1,Hm,Wm]
-            masks_small = F.interpolate(masks_valid, size=attention_valid.shape[2:], mode='area')
+            Bv, C, Hf, Wf = fm_valid.shape
+            G = self.channel_pool_groups
+            if C % G == 0:
+                pooled = fm_valid.view(Bv, G, C // G, Hf, Wf).mean(dim=2)  # [Bv, G, Hf, Wf]
+                with torch.autocast(device_type="cuda"):
+                    attn_valid = self.pool_conv(pooled)  # [Bv,1,Hf,Wf]
+            else:
+                # fallback to channel mean if channels not divisible
+                with torch.autocast(device_type="cuda"):
+                    attn_valid = fm_valid.mean(dim=1, keepdim=True)  # [Bv,1,Hf,Wf]
+        
+            masks = binary_masks
+            if masks.dim() == 3:
+                masks = masks.unsqueeze(1)  # [B,1,Hm,Wm]
+            masks = masks.to(attn_valid.device, non_blocking=True).float()
+            masks_valid = masks.index_select(0, ids)  # [Bv,1,Hm,Wm]
 
-            # move to same device
-            masks_small = masks_small.to(attention_valid.device)
-            sigmoid_fc_loss = self.sigmoid_focal_loss(attention_valid, masks_small)
-            tversky_loss = self.tversky_loss(attention_valid, masks_small)
+            # soft downsample to attn resolution (cheap and keeps boundary fraction info)
+            masks_small = F.interpolate(masks_valid, size=attn_valid.shape[2:], mode='area')  # [Bv,1,Hf,Wf]
+
+            # compute losses inside autocast (faster)
+            with torch.autocast(device_type="cuda"):
+                sigmoid_fc_loss = self.sigmoid_focal_loss(attn_valid, masks_small)
+                tversky_loss = self.tversky_loss(attn_valid, masks_small)
         else:
             sigmoid_fc_loss = torch.zeros((), device=device)
             tversky_loss = torch.zeros((), device=device)

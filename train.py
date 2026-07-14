@@ -57,7 +57,7 @@ def hook_fn(module, input, output):
 #     nonlocal feature_maps
 #     feature_maps = output
 
-def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, ):
+def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, scaler=None):
     model.train()
     metrics = MetricCalV3(num_classes=num_classes, device=device)
     print(len(model.model.fusion._forward_hooks))
@@ -71,17 +71,26 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
         # features.clear()
-        outputs = model(inputs)
-        # feature_maps = features[0]
-        # feature_maps = model.get_feature_maps()
-        feature_maps = features["feature_maps"]
-        total_loss, cls_loss, focal_loss, tversky_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
-        total_loss.backward()
-        optimizer.step()
-
-        metrics.update_train(cls_loss=cls_loss,
-                             focal_loss=focal_loss,
-                             tversky_loss=tversky_loss,
+        with torch.autocast(device_type="cuda"):
+            outputs = model(inputs)
+            # feature_maps = features[0]
+            # feature_maps = model.get_feature_maps()
+            feature_maps = features["feature_maps"]
+            total_loss, cls_loss, focal_loss, tversky_loss = criterion(outputs, targets, feature_maps, masks, has_masks, epoch) #SaliencyGuideLoss trả về 4 tham số
+        
+        if scaler is not None:
+            scaler.scale(total_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            total_loss.backward()
+            optimizer.step()
+        cls_loss_t = cls_loss.detach().float()         # still a torch.Tensor, detached from graph
+        focal_loss_t = focal_loss.detach().float()
+        tversky_loss_t = tversky_loss.detach().float()
+        metrics.update_train(cls_loss=cls_loss_t,
+                             focal_loss=focal_loss_t,
+                             tversky_loss=tversky_loss_t,
                              has_masks=has_masks, 
                              outputs=outputs, 
                              targets=targets, 
@@ -96,8 +105,11 @@ def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
         for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
             inputs, targets = inputs.to(device), targets.to(device)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
+            with torch.autocast(device_type=device):
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+            # outputs = model(inputs)
+            # loss = criterion(outputs, targets)
             metrics.update_test(loss=loss, outputs=outputs, targets=targets, type="hard")
     return metrics
 
@@ -239,7 +251,7 @@ def main():
                                          scheduler=scheduler,
                                          device=device)
         best_acc = Get_Max_Acc(metrics_path)
-
+    scaler = torch.amp.GradScaler()
     for epoch in range(begin_epoch, end_epoch):
         hook_handle = model.register_hook(hook_fn)
         train_metrics = train(epoch, 
