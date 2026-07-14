@@ -8,6 +8,7 @@ from timm.loss.cross_entropy import SoftTargetCrossEntropy
 from monai.losses.tversky import TverskyLoss
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class SaliencyGuidedLossV2(nn.Module):
     def __init__(self, type, enabled_batchwise_transform=False, alpha=1.0, beta=1.0, gamma=1.0, delta=1.0):
@@ -116,11 +117,11 @@ class SaliencyGuidedLossV2(nn.Module):
             G = self.channel_pool_groups
             if C % G == 0:
                 pooled = fm_valid.view(Bv, G, C // G, Hf, Wf).mean(dim=2)  # [Bv, G, Hf, Wf]
-                with torch.autocast(device_type="cuda"):
+                with torch.autocast(device_type=device_str):
                     attn_valid = self.pool_conv(pooled)  # [Bv,1,Hf,Wf]
             else:
                 # fallback to channel mean if channels not divisible
-                with torch.autocast(device_type="cuda"):
+                with torch.autocast(device_type=device_str):
                     attn_valid = fm_valid.mean(dim=1, keepdim=True)  # [Bv,1,Hf,Wf]
         
             masks = binary_masks
@@ -133,7 +134,7 @@ class SaliencyGuidedLossV2(nn.Module):
             masks_small = F.interpolate(masks_valid, size=attn_valid.shape[2:], mode='area')  # [Bv,1,Hf,Wf]
 
             # compute losses inside autocast (faster)
-            with torch.autocast(device_type="cuda"):
+            with torch.autocast(device_type=device_str):
                 sigmoid_fc_loss = self.sigmoid_focal_loss(attn_valid, masks_small)
                 tversky_loss = self.tversky_loss(attn_valid, masks_small)
         else:

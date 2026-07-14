@@ -45,7 +45,7 @@ def set_seed(seed=42):
     torch.cuda.manual_seed_all(seed)
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
+device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
 features = {}
 def hook_fn(module, input, output):
     # features.append(output)
@@ -71,7 +71,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
         # features.clear()
-        with torch.autocast(device_type="cuda"):
+        with torch.autocast(device_type=device_str):
             outputs = model(inputs)
             # feature_maps = features[0]
             # feature_maps = model.get_feature_maps()
@@ -105,7 +105,7 @@ def validate(epoch, end_epoch, model, loader, criterion, device, num_classes):
         for inputs, _, targets, _ in tqdm(loader, total=len(loader), desc="Validating epoch [{0}/{1}]".
                                 format(epoch, end_epoch)):
             inputs, targets = inputs.to(device), targets.to(device)
-            with torch.autocast(device_type=device):
+            with torch.autocast(device_type=device_str):
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
             # outputs = model(inputs)
@@ -251,7 +251,7 @@ def main():
                                          scheduler=scheduler,
                                          device=device)
         best_acc = Get_Max_Acc(metrics_path)
-    scaler = torch.amp.GradScaler()
+    scaler = torch.amp.GradScaler(device=device_str)
     for epoch in range(begin_epoch, end_epoch):
         hook_handle = model.register_hook(hook_fn)
         train_metrics = train(epoch, 
@@ -262,7 +262,8 @@ def main():
                                 criterion=train_criterion, 
                                 optimizer=optimizer, 
                                 device=device,
-                                num_classes=len(CLASSES))
+                                num_classes=len(CLASSES),
+                                scaler=scaler)
         train_loss, train_acc = train_metrics.overall_loss(alpha=alpha,beta=beta,gamma=gamma, delta=delta), train_metrics.avg_accuracy
         scheduler.step()
         print()
