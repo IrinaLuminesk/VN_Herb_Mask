@@ -24,7 +24,7 @@ class SaliencyGuidedLoss(nn.Module):
             bias=False
         ).to("cuda")
         self.classification_loss = self.loss_builder()
-        self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
+        self.bce_loss = nn.BCEWithLogitsLoss(reduction="mean")
         self.dice_loss = DiceLoss(
             mode="binary",
             from_logits=True,
@@ -37,17 +37,6 @@ class SaliencyGuidedLoss(nn.Module):
                 return SoftTargetCrossEntropy()
         return nn.CrossEntropyLoss()
 
-    # def sigmoid_rampup(self, current_epoch):
-    #     """ Exponential / sigmoid ramp-up from 0 to 1 """
-    #     if self.rampup_length == 0:
-    #         return 1.0
-    #     else:
-    #         current = float(current_epoch)
-    #         if current >= self.rampup_length:
-    #             return 1.0
-    #         else:
-    #             phase = 1.0 - current / self.rampup_length
-    #             return math.exp(-5.0 * phase * phase)
     
     def create_attention_map(self, feature_maps, binary_masks):
         # Attention map
@@ -67,30 +56,6 @@ class SaliencyGuidedLoss(nn.Module):
         )
         return attention_map
     
-    def compute_tv_loss(self, attention_map, has_masks):
-        """
-        attention_map: [B, 1, H, W] (LOGITS)
-        has_masks:     [B] boolean tensor
-        """
-        if has_masks.any():
-            valid_idx = has_masks.nonzero(as_tuple=True)[0]
-            attn = attention_map[valid_idx]  # only supervised samples
-
-            # vertical differences
-            diff_h = torch.abs(attn[:, :, 1:, :] - attn[:, :, :-1, :])
-
-            # horizontal differences
-            diff_w = torch.abs(attn[:, :, :, 1:] - attn[:, :, :, :-1])
-
-            tv_loss = diff_h.mean() + diff_w.mean()
-
-        else:
-            tv_loss = torch.zeros(
-                (),
-                device=attention_map.device
-            )
-
-        return tv_loss
 
     def BCE_loss(self, attention_map, binary_masks, has_masks):
 

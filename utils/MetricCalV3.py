@@ -6,14 +6,14 @@ class MetricCalV3():
         self.reset()
     def reset(self):
         self.total_cls_loss = torch.zeros(1, device=self.device)
-        self.total_focal_loss = torch.zeros(1, device=self.device)
-        self.total_tversky_loss = torch.zeros(1, device=self.device)
+        self.total_saliency_loss1 = torch.zeros(1, device=self.device)
+        self.total_saliency_loss2 = torch.zeros(1, device=self.device)
         # self.total_tv_loss = torch.zeros(1, device=self.device)
         self.total_overall_loss = torch.zeros(1, device=self.device)
         
         self.correct = torch.zeros(1, device=self.device)
         self.total = torch.zeros(1, device=self.device)
-        self.total_focal_tversky = torch.zeros(1, device=self.device)
+        self.total_saliency = torch.zeros(1, device=self.device)
 
         self.cm = torch.zeros(
             (self.num_classes, self.num_classes),
@@ -59,7 +59,7 @@ class MetricCalV3():
         self.fn_per_class += cm.sum(dim=1) - cm.diag()
 
     @torch.no_grad()
-    def update_train(self, cls_loss, focal_loss, tversky_loss, outputs, targets, has_masks, type="soft"):
+    def update_train(self, cls_loss, saliency_loss1, saliency_loss2, outputs, targets, has_masks, type="soft"):
         #Dùng để tính classification loss
         batch_size = targets.size(0)
 
@@ -69,11 +69,11 @@ class MetricCalV3():
         
         valid_count = has_masks.sum()
 
-        self.total_focal_loss  += focal_loss.detach() * valid_count
-        self.total_tversky_loss += tversky_loss.detach() * valid_count
+        self.total_saliency_loss1  += saliency_loss1.detach() * valid_count
+        self.total_saliency_loss2 += saliency_loss2.detach() * valid_count
         # self.total_tv_loss     += tv_loss.detach() * valid_count
 
-        self.total_focal_tversky += valid_count
+        self.total_saliency += valid_count
 
         # self.total_overall_loss += overall_loss.item()
 
@@ -111,21 +111,21 @@ class MetricCalV3():
         return (self.total_cls_loss / self.total).item() if self.total > 0 else 0.0
 
     @property
-    def avg_focal_loss(self):
-        return (self.total_focal_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
+    def avg_saliency_loss1(self):
+        return (self.total_saliency_loss1 / self.total_saliency).item() if self.total_saliency > 0 else 0.0
 
     # @property
     # def avg_tv_loss(self):
     #     return (self.total_tv_loss / self.total).item() if self.total > 0 else 0.0
     @property
-    def avg_tversky_loss(self):
-        return (self.total_tversky_loss / self.total_focal_tversky).item() if self.total_focal_tversky > 0 else 0.0
+    def avg_saliency_loss2(self):
+        return (self.total_saliency_loss2 / self.total_saliency).item() if self.total_saliency > 0 else 0.0
 
     def overall_loss(self, alpha, beta, gamma, delta):
         return (
             alpha * self.avg_cls_loss
-            + beta * self.avg_focal_loss
-            + gamma * self.avg_tversky_loss
+            + beta * self.avg_saliency_loss1
+            + gamma * self.avg_saliency_loss2
         )
 
     @property
