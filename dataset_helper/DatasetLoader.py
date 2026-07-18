@@ -139,12 +139,12 @@ class ImageMaskFolder(Dataset):
             # mask = (mask > 0).float()
             mask = pil_to_tensor(Image.open(mask_path)).squeeze(0)
             mask = (mask > 0).float()
-            mask = F.max_pool2d(
-                    mask.unsqueeze(0).unsqueeze(0),
-                    kernel_size=15,
-                    stride=1,
-                    padding=7
-            ).squeeze(0).squeeze(0)
+            # mask = F.max_pool2d(
+            #         mask.unsqueeze(0).unsqueeze(0),
+            #         kernel_size=15,
+            #         stride=1,
+            #         padding=7
+            # ).squeeze(0).squeeze(0)
             has_mask = True 
             if not mask.any(): #Trường hợp có mask nhưng mask không có gì
                 has_mask = False
