@@ -35,7 +35,7 @@ class ImageMaskFolder(Dataset):
         self.img_size = img_size
         self.data_type = data_type
         self.transform = transform
-        self.zero_mask = self.create_zeros_mask(256, 256)
+        self.zero_mask = self.create_zeros_mask(self.img_size[0], self.img_size[1])
         self.data_transform = self.train_transform() if self.data_type == "train" else self.test_transform()
 
         # Mimic ImageFolder indexing

@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 #Hàm tự định nghĩa
 from aug_helper.Aug_Hier_Saliency.BatchWiseAug import BatchWiseAug
-from loss_helper.HierarchySaliencyGuidedLoss import HierarchySaliencyGuidedLoss
+from loss_helper.HierarchySaliencyGuidedLossV2 import HierarchySaliencyGuidedLossV2
+from model_builder.new_custom_model.Resnet50_Swin import Resnet50_Swin
 # from utils.MetricCal import MetricCal
 from utils.MetricCal_HierSaliency import MetricCal_HierSaliency
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
@@ -49,9 +50,9 @@ def set_seed(seed=42):
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+features = {}
 def hook_fn(module, input, output):
-    # features.append(output)
-    module.feature_maps = output
+    features["feature_maps"] = output
 
 def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, optimizer, device, num_classes, hier_matrixs, consistent_list):
     model.train()
@@ -199,15 +200,15 @@ def main():
     if enabled_batchwise_transform:
         batchWiseAug = BatchWiseAug(config=config, num_classes=num_classes)
 
-    model = Model(model_type=model_type, 
-                  num_classes=num_classes, 
-                  attention_layer_type=attention_layer_type,
-                  replace_relu=relu_replace).to(device)
-    # model = Resnet50_Hierarchy(num_classes, 0, False).to(device)
-    hook_handle = model.register_hook(hook_fn)
+    # model = Model(model_type=model_type, 
+    #               num_classes=num_classes, 
+    #               attention_layer_type=attention_layer_type,
+    #               replace_relu=relu_replace).to(device)
+    model = Resnet50_Swin(num_classes=len(CLASSES), 
+                          attention_layer_type=1, replace_relu=True).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
-    train_criterion = HierarchySaliencyGuidedLoss(
+    train_criterion = HierarchySaliencyGuidedLossV2(
         num_classes=num_classes, 
         type="train", 
         enabled_batchwise_transform=enabled_batchwise_transform,
@@ -249,6 +250,7 @@ def main():
         best_acc = Get_Max_Acc(metrics_path)
 
     for epoch in range(begin_epoch, end_epoch):
+        hook_handle = model.fusion.register_forward_hook(hook_fn)
         train_metrics = train(epoch, 
                                 end_epoch, 
                                 batchWiseAug=batchWiseAug,
@@ -265,7 +267,6 @@ def main():
         print()
         hook_handle.remove() #Vô hiệu hóa hook khi validate và tái khởi động khi train
         val_metrics = val_metrics = validate(epoch, end_epoch, model, testing_loader, eval_criterion, device, num_classes=num_classes, consistent_list=consistent_list)
-        hook_handle = model.register_hook(hook_fn)
         val_loss, val_acc = val_metrics.avg_cls_loss, val_metrics.avg_accuracy("Species")
         print()
 
