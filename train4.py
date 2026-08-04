@@ -10,7 +10,7 @@ from tqdm import tqdm
 #Hàm tự định nghĩa
 from aug_helper.Aug_Hier_Saliency.BatchWiseAug import BatchWiseAug
 from loss_helper.HierarchySaliencyGuidedLossV2 import HierarchySaliencyGuidedLossV2
-from model_builder.new_custom_model.Resnet50_Swin import Resnet50_Swin
+from model_builder.hierarchy_model.Resnet50_Swin_Hier import Resnet50_Swin_Hier
 # from utils.MetricCal import MetricCal
 from utils.MetricCal_HierSaliency import MetricCal_HierSaliency
 from learning_rate_helper.learning_rate import PiecewiseScheduler, WarmupCosineScheduler
@@ -67,7 +67,7 @@ def train(epoch: int, end_epoch: int, batchWiseAug, model, loader, criterion, op
         has_masks = has_masks.to(device, non_blocking=True)
         optimizer.zero_grad()
         outputs = model(inputs)
-        feature_maps = model.get_feature_maps()
+        feature_maps = features["feature_maps"]
         
         # classification_loss, each_classification_loss, consistent_loss, each_consistent_loss, total_loss = criterion(outputs, targets, hier_matrixs)
         (classification_loss, 
@@ -204,7 +204,7 @@ def main():
     #               num_classes=num_classes, 
     #               attention_layer_type=attention_layer_type,
     #               replace_relu=relu_replace).to(device)
-    model = Resnet50_Swin(num_classes=len(CLASSES), 
+    model = Resnet50_Swin_Hier(num_classes=num_classes, 
                           attention_layer_type=1, replace_relu=True).to(device)
 
     eval_criterion = nn.CrossEntropyLoss()
