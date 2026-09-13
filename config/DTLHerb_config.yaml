@@ -8,8 +8,8 @@ DATASET:
   ROOT_FOLDER: "/content/train_ori"
   TRAIN_FOLDER: "/content/train_ori"
   TEST_FOLDER: "/content/test_ori"
-  TRAIN_MASK_FOLDER: "/content/train_mask"
-  TEST_MASK_FOLDER: "/content/test_mask"
+  TRAIN_MASK_FOLDER: "/content/train_ori"
+  TEST_MASK_FOLDER: "/content/test_ori"
   ZIP_FOLDER: "./datasets/Cifar10.zip"
   SELECTION_RATIO: 1
   SPLIT_RATIO: 0.7
@@ -31,7 +31,7 @@ TRAIN:
     MEAN:  [0.66565923, 0.66174304, 0.57747589]
     STD:  [0.20152938, 0.20600946, 0.209565  ]
   TRAIN_PARA:
-    MODEL_TYPE: 1 #{1: Resnet50, 2: Xception}
+    MODEL_TYPE: 9 #{1: Resnet50, 2: Xception}
     ATTENTION_LAYER_TYPE: 1
     BEGIN_EPOCH: 0
     END_EPOCH: 50
@@ -49,11 +49,11 @@ TRAIN:
 
   OPTIONAL:
     SAVE_CHECKPOINT: TRUE
-    CHECKPOINT_PATH: "./resume_model/checkpoint.pth"
+    CHECKPOINT_PATH: "/content/drive/MyDrive/New_VNHerb_Training/Swin/checkpoint.pth"
     SAVE_BEST: TRUE
-    BEST_PATH: "./best_model/best_checkpoint.pth"
+    BEST_PATH: "/content/drive/MyDrive/New_VNHerb_Training/Swin/best_checkpoint.pth"
     SAVE_METRICS: TRUE
-    METRICS_PATH: "./metrics/metrics.csv"
+    METRICS_PATH: "/content/drive/MyDrive/New_VNHerb_Training/Swin/metrics.csv"
   AUG:
     CUTMIX: [TRUE, 0.5]
     MIXUP: [TRUE, 0.5]
