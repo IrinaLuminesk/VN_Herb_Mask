@@ -6,7 +6,8 @@ from torchvision.models import resnet50, ResNet50_Weights,\
     alexnet, AlexNet_Weights,\
     mobilenet_v2, MobileNet_V2_Weights, \
     efficientnet_v2_l, EfficientNet_V2_L_Weights, \
-    inception_v3, Inception_V3_Weights
+    inception_v3, Inception_V3_Weights, \
+    swin_v2_b, Swin_V2_B_Weights
 import timm   
 class Model(nn.Module):
     def __init__(self, num_classes, model_type):
@@ -145,51 +146,65 @@ class Model(nn.Module):
                 )
                 print("Training on Inception V3 architecture")
                 return model
-    def register_hook(self, hook_fn):
-        match self.model_type:
-            case 1: 
-                self.model.layer4.feature_maps = None
-                hook_handle = self.model.layer4.register_forward_hook(hook_fn)
-                return hook_handle
-            case 2:
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            case 3:
-                self.model.stem.feature_maps = None
-                hook_handle = self.model.blocks.register_forward_hook(hook_fn)
-                return hook_handle
-            case 4:
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            case 5:
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            case 6:
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-            case 7:
-                self.model.features.feature_maps = None
-                hook_handle = self.model.features.register_forward_hook(hook_fn)
-                return hook_handle
-    def get_feature_maps(self):
-        match self.model_type:
-            case 1:
-                return self.model.layer4.feature_maps
-            case 2:
-                return self.model.features.feature_maps
-            case 3:
-                return self.model.blocks.feature_maps
-            case 4:
-                return self.model.features.feature_maps
-            case 5:
-                return self.model.features.feature_maps
-            case 6:
-                return self.model.features.feature_maps
-            case 7:
-                return self.model.features.feature_maps
+            case 9: #Swin Transformer
+                swin_v2_weight = Swin_V2_B_Weights.DEFAULT
+                model = swin_v2_b(weights=swin_v2_weight)
+                in_features = model.head.in_features #1024
+                # model.head = nn.Linear(in_features, self.num_classes, bias=True)
+                model.head = nn.Sequential(
+                    nn.LayerNorm(in_features),
+                    nn.Linear(in_features, 1024),
+                    nn.GELU(),
+                    nn.Dropout(0.1),
+                    nn.Linear(1024, self.num_classes)
+                )
+                print("Training on Swin architecture")
+                return model
+    # def register_hook(self, hook_fn):
+    #     match self.model_type:
+    #         case 1: 
+    #             self.model.layer4.feature_maps = None
+    #             hook_handle = self.model.layer4.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 2:
+    #             self.model.features.feature_maps = None
+    #             hook_handle = self.model.features.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 3:
+    #             self.model.stem.feature_maps = None
+    #             hook_handle = self.model.blocks.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 4:
+    #             self.model.features.feature_maps = None
+    #             hook_handle = self.model.features.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 5:
+    #             self.model.features.feature_maps = None
+    #             hook_handle = self.model.features.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 6:
+    #             self.model.features.feature_maps = None
+    #             hook_handle = self.model.features.register_forward_hook(hook_fn)
+    #             return hook_handle
+    #         case 7:
+    #             self.model.features.feature_maps = None
+    #             hook_handle = self.model.features.register_forward_hook(hook_fn)
+    #             return hook_handle
+    # def get_feature_maps(self):
+    #     match self.model_type:
+    #         case 1:
+    #             return self.model.layer4.feature_maps
+    #         case 2:
+    #             return self.model.features.feature_maps
+    #         case 3:
+    #             return self.model.blocks.feature_maps
+    #         case 4:
+    #             return self.model.features.feature_maps
+    #         case 5:
+    #             return self.model.features.feature_maps
+    #         case 6:
+    #             return self.model.features.feature_maps
+    #         case 7:
+    #             return self.model.features.feature_maps
     def forward(self, x):
         return self.model(x)
